@@ -9,21 +9,29 @@ require("rpart.plot")
 #Aqui debe cambiar los parametros por los que desea probar
 
 param_basicos  <- list( "cp"=          -1,  #complejidad minima
-                        "minsplit"=   900,     #minima cantidad de registros en un nodo para hacer el split
-                        "minbucket"=  300,     #minima cantidad de registros en una hoja
-                        "maxdepth"=     11 )    #profundidad máxima del arbol
-
+                        "minsplit"=   2,     #minima cantidad de registros en un nodo para hacer el split
+                        "minbucket"=  1,     #minima cantidad de registros en una hoja
+                        "maxdepth"=     3 )    #profundidad máxima del arbol
+peso_error = 10000
 
 #Aqui se debe poner la carpeta de SU computadora local
 setwd("C:\\data_mining\\")  #Establezco el Working Directory
 
 #cargo los datos de 202011 que es donde voy a ENTRENAR el modelo
 dtrain  <- fread("./datasets/paquete_premium_202011.csv")
+dtrain[, clase_binaria := ifelse( clase_ternaria=="BAJA+2", "BAJA+2", "NO_BAJA+2")]
+dtrain = dtrain[, !"clase_ternaria"]
+
+dtrain[order(clase_binaria), clase_binaria]
+
+matriz_perdida  <- matrix(c( 0,peso_error, 1,0), nrow = 2, byrow = TRUE)
+matriz_perdida
 
 #genero el modelo,  aqui se construye el arbol
-modelo  <- rpart("clase_ternaria ~ .",  #quiero predecir clase_ternaria a partir de el resto de las variables
+modelo  <- rpart("clase_binaria ~ .",  #quiero predecir clase_ternaria a partir de el resto de las variables
                  data = dtrain,
                  xval=0,
+                 parms = list(loss = matriz_perdida),
                  control=  param_basicos )
 
 #grafico el arbol
