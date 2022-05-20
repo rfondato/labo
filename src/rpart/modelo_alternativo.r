@@ -30,7 +30,7 @@ particionar  <- function( data,  division, agrupa="",  campo="fold", start=1, se
 }
 #------------------------------------------------------------------------------
 
-ArbolEstimarGanancia  <- function( semilla, param_basicos, peso_error )
+ArbolEstimarGanancia  <- function( semilla, param_basicos, peso_error, proba )
 {
   dataset = as.data.table(dataset)
   gc()
@@ -58,7 +58,7 @@ ArbolEstimarGanancia  <- function( semilla, param_basicos, peso_error )
 
   #calculo la ganancia en testing  qu es fold==2
   ganancia_test  <- dataset[ fold==2, 
-                             sum( ifelse( prediccion[, "1"]  >  1/60,
+                             sum( ifelse( prediccion[, "1"]  >  proba,
                                          ifelse( clase_binaria=="1", 59000, -1000 ),
                                          0 ) )]
 
@@ -70,14 +70,14 @@ ArbolEstimarGanancia  <- function( semilla, param_basicos, peso_error )
 
 #------------------------------------------------------------------------------
 
-CorrerSemillasEnParalelo <- function(cluster, semillas, max_depth, min_split, min_bucket, cp, peso_error)
+CorrerSemillasEnParalelo <- function(cluster, semillas, max_depth, min_split, min_bucket, cp, peso_error, proba)
 {
   param_basicos  <- list( "cp"=         cp,         #complejidad minima
                           "minsplit"=   min_split,  #minima cantidad de registros en un nodo para hacer el split
                           "minbucket"=  min_bucket, #minima cantidad de registros en una hoja
                           "maxdepth"=   max_depth ) #profundidad máxima del arbol
   
-  ganancias <- clusterMap(cluster, ArbolEstimarGanancia, semillas, MoreArgs=list(param_basicos, peso_error))
+  ganancias <- clusterMap(cluster, ArbolEstimarGanancia, semillas, MoreArgs=list(param_basicos, peso_error, proba))
   
   # Promedio de ganancias entre todas las corridas
   return (mean(unlist(ganancias)))
@@ -85,7 +85,7 @@ CorrerSemillasEnParalelo <- function(cluster, semillas, max_depth, min_split, mi
 
 #------------------------------------------------------------------------------
 
-EscribirEnArchivo <- function(archivo_salida, max_depth, min_split, min_bucket, cp, peso_error, ganancia_promedio) {
+EscribirEnArchivo <- function(archivo_salida, max_depth, min_split, min_bucket, cp, peso_error, proba, ganancia_promedio) {
    cat(  file=archivo_salida,
          append= TRUE,
          sep= "",
@@ -94,6 +94,7 @@ EscribirEnArchivo <- function(archivo_salida, max_depth, min_split, min_bucket, 
          min_bucket, "\t",
          cp, "\t",
          peso_error, "\t",
+         proba, "\t",
          ganancia_promedio, "\n"  )
 }
 
@@ -111,6 +112,7 @@ ArbolesMCParalelo  <- function( semillas, params )
        "min_bucket", "\t",
        "cp", "\t",
        "peso_error", "\t",
+       "proba", "\t",
        "ganancia_promedio", "\n")
   
   # Registro cores por cantidad de semillas a ejecutar en paralelo
@@ -134,11 +136,11 @@ ArbolesMCParalelo  <- function( semillas, params )
   # Este truco me permite hacer una ejecución por row.
   # Luego asigno el promedio de todas las semillas en una nueva columna "ganancia_promedio".
   # Como resultado, el data.table params contendrá para cada combinación de params su ganancia.
-  params[,by=Idx, ganancia_promedio := CorrerSemillasEnParalelo(cl, semillas, max_depth, min_split, min_bucket, cp, peso_error)]
+  params[,by=Idx, ganancia_promedio := CorrerSemillasEnParalelo(cl, semillas, max_depth, min_split, min_bucket, cp, peso_error, proba)]
   
   # Usando el mismo truco ejecuto "EscribirEnArchivo" por cada row,
   # para grabar en el archivo de salida el resultado de cada combinación de parámetros
-  params[,by=Idx, EscribirEnArchivo(archivo_salida, max_depth, min_split, min_bucket, cp, peso_error, ganancia_promedio)]
+  params[,by=Idx, EscribirEnArchivo(archivo_salida, max_depth, min_split, min_bucket, cp, peso_error, proba, ganancia_promedio)]
   
   # Limpio la columna dummy Idx
   params[,Idx:=NULL]
@@ -164,14 +166,15 @@ dir.create( "./labo/exp/",  showWarnings = FALSE )
 dir.create( "./labo/exp/HT2020/", showWarnings = FALSE )
 
 # Creo los valores posibles a explorar por cada parámetro
-max_depth = c (6, 8, 10, 12)
-min_split = c (400, 800, 1600, 2000, 2400)
-min_bucket = c (200, 400, 800, 1000, 1200)
+max_depth = c (10)
+min_split = c (1600)
+min_bucket = c (400)
 cp = c(-1)
-peso_error = c(100, 1000, 5000, 10000)
+peso_error = c(1, 50, 250, 1000, 5000)
+proba = c(1/10, 1/20, 1/30, 1/40, 1/50, 1/60, 1/70)
 
 # Creo un data.table con un "cross-join", es decir todas las combinaciones de los parámetros
-params <- CJ(max_depth=max_depth,min_split=min_split,min_bucket=min_bucket,cp=cp, peso_error=peso_error)
+params <- CJ(max_depth=max_depth,min_split=min_split,min_bucket=min_bucket,cp=cp, peso_error=peso_error, proba=proba)
 
 # Filtrar params que no funcionan según relación de min_split y min_bucket
 params <- params[min_split >= 2 * min_bucket,]

@@ -11,30 +11,29 @@ require("rpart.plot")
 #Aqui se debe poner la carpeta de la computadora local
 setwd("C:\\data_mining\\")  #Establezco el Working Directory
 
-#cargo los datos donde entreno y convierto en target binario
+#cargo los datos donde entreno
 dtrain  <- fread("./datasets/paquete_premium_202011.csv")
-dtrain[, clase_binaria := ifelse( clase_ternaria=="BAJA+2", 1, 0)][, clase_binaria := factor(clase_binaria)]
-dtrain = dtrain[, !"clase_ternaria"]
 
 #cargo los datos donde aplico el modelo
 dapply  <- fread("./datasets/paquete_premium_202101.csv")
 
+
 #Establezco cuales son los campos que puedo usar para la prediccion
-campos_buenos  <- setdiff(  colnames(dtrain) ,  c("clase_binaria") )
+campos_buenos  <- setdiff(  colnames(dtrain) ,  c("clase_ternaria") )
 
 param_buenos  <- list( "cp"=         -1,
-                       "minsplit"=  1600,
-                       "minbucket"= 400,
-                       "maxdepth"=    8 )
+                       "minsplit"=  300,
+                       "minbucket"= 150,
+                       "maxdepth"=    6 )
 
 num_trees         <-  1000    #voy a generar 20 arboles, a mas arboles mas tiempo de proceso y MEJOR MODELO
 feature_fraction  <-   0.3  #entreno cada arbol con solo 50% de las variables variables
 
-# Matriz de loss
-peso_error = 250
-matriz_perdida  <- matrix(c( 0, 1, peso_error,0), nrow = 2, byrow = TRUE)
-
 set.seed(240007) #Establezco la semilla aleatoria, cambiar por SU primer semilla
+
+#Matriz de loss
+peso_error = 59
+matriz_perdida  <- matrix(c( 0,peso_error,1,   1,0,1,   1,peso_error,0), nrow = 3)
 
 #inicializo en CERO el vector de las probabilidades en dapply
 #Aqui es donde voy acumulando, sumando, las probabilidades
@@ -62,13 +61,13 @@ for(  i in  1:num_trees ) #genero  num_trees arboles
   campos_random  <- paste( campos_random, collapse=" + ")
 
   #armo la formula para rpart
-  formulita  <- paste0( "clase_binaria ~ ", campos_random )
+  formulita  <- paste0( "clase_ternaria ~ ", campos_random )
 
   #genero el arbol de decision
   modelo  <- rpart( formulita,
                     data= dtrain,
                     xval= 0,
-                    parms = list(loss = matriz_perdida),
+                    parms= list( loss= matriz_perdida),
                     control= param_buenos )
 
   #grafico el modelo
@@ -77,10 +76,10 @@ for(  i in  1:num_trees ) #genero  num_trees arboles
   #aplico el modelo a los datos que no tienen clase
   prediccion  <- predict( modelo, dapply , type = "prob")
   
-  tb_ensembles[  ,  paste0( "arbol", i) :=  prediccion[ , "1"] ]
+  tb_ensembles[  ,  paste0( "arbol", i) :=  prediccion[ , "BAJA+2"] ]
 
   #voy acumulando la probabilidad
-  probabilidad_ensemble  <- probabilidad_ensemble +  prediccion[, "1"]
+  probabilidad_ensemble  <- probabilidad_ensemble +  prediccion[, "BAJA+2"]
 }
 
 dev.off()  #dejo de imprimir

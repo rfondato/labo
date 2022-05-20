@@ -24,4 +24,5 @@ dataset[clase_ternaria=="BAJA+2", .N]
 dataset[clase_ternaria=="BAJA+1", .N] / (dataset[clase_ternaria=="CONTINUA", .N] + dataset[clase_ternaria=="BAJA+1", .N])
 dataset[clase_ternaria=="BAJA+2", .N] / dataset[clase_ternaria=="CONTINUA", .N]
 
-dataset[clase_ternaria=="CONTINUA", .N] / dataset[clase_ternaria=="BAJA+2", .N]
+(dataset[clase_ternaria=="CONTINUA", .N] + dataset[clase_ternaria=="BAJA+1", .N]) / dataset[clase_ternaria=="BAJA+2", .N]
+244/60
