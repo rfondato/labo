@@ -165,7 +165,7 @@ max_depth = c (10)
 min_split = c (1600)
 min_bucket = c (400)
 cp = c(-1)
-peso_error = c(0.8, 0.9, 0.95, 1)
+peso_error = c(1)
 
 # Creo un data.table con un "cross-join", es decir todas las combinaciones de los parámetros
 params <- CJ(max_depth=max_depth,min_split=min_split,min_bucket=min_bucket,cp=cp,peso_error=peso_error)

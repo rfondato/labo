@@ -1,0 +1,5 @@
+							MonteCarlo / CV				Kaggle (Public Leaderboard)
+rpart default					 0									0
+rpart mejores hp			  9893000							16.77468
+ranger default				  9442000							17.03468
+ranger mejores hp			  12159000							17.14967

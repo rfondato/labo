@@ -1,0 +1,55 @@
+Correlaciones con ctrx_quarter:
+* ctrx_quarter => Cantidad de movimientos voluntarios en cuentas bancarias en los ultimos 90 dias
+* ctransferencias_emitidas => Cantidad de transferencias emitidas en todas las cuentas durante el mes
+* cpagomiscuentas => Cantidad de pagos efectuados durante el mes por el canal PagoMisCuentas
+* ctarjeta_debito_trx => Cantidad de transacciones que hizo el cliente con su tarjeta de débito durante el mes.
+* mautoservicio => Monto total de las transacciones que hizo el cliente con su tarjeta de débito duirante el mes.
+* ctarjeta_visa_trx => Cantidad de transacciones efectuadas durante el mes con la tarjeta de crédito VISA
+* mtarjeta_visa_consumo => Monto total de los consumos efectuados durante el mes con la tarjeta de crédito VISA
+* chomebanking_trx => Cantidad de transacciones por home banking que el cliente hizo durante el mes.
+* ctransferencias_recibidas => Cantidad de transferencias recibidas en todas las cuentas durante el mes. Puede ser transferencias propias o de terceros.
+* !mactivos_margen
+
+
+Algunas variables que pueden ser copadas:
+* mtransferencias_recibidas => Monto total de transferencias recibidas en todas las cuentas durante el mes. Puede ser transferencias propias o de terceros.
+* mtransferencias_emitidas => Monto total de transferencias emitidas en todas las cuentas durante el mes. Puede ser transferencias propias o de terceros.
+* cextraccion_autoservicio => Cantidad de extracciones en cajeros automáticos durante el mes
+* mextraccion_autoservicio => Monto total de extracciones en cajeros automáticos durante el mes
+
+
+Variables de importancia en lightgbm:
+* ctrx_quarter => Cantidad de movimientos voluntarios en cuentas bancarias en los ultimos 90 dias
+* mpasivos_margen => Monto total de la ganancia que el banco ha obtenido por el dinero/inversiones que el cliente tiene en el banco.
+* cpayroll_trx => Cantidad de Acreditaciones de Haberes en relación de dependencia que le hicieron al cliente en ese mes.  Un cliente puede estar en relacion de dependencia con mas de una empresa. Una empresa puede hacerle VARIOS depósitos al mismo empleado durante el mes.  Solamente se consideran las acreditaciones de empresas que tienen un contrato con el banco.
+* mpayroll => Monto total que le acreditaron los empleadores “acreditados”  al cliente durante el mes.
+* mtarjeta_visa_consumo => Monto total de los consumos efectuados durante el mes con la tarjeta de crédito VISA
+* mcaja_ahorro => Monto total de la caja de ahorro del Paquete Premium
+* mcuentas_saldo => Saldo total de TODAS las cuentas del cliente, cajas de ahorro, cuentas corrientes, pesos y dolares. El valor esta convertido a pesos.
+* mactivos_margen => Monto total de la ganancia que el banco ha obtenido en concepto de intereses que ha cobrado al cliente.
+
+
+Correlaciones de mpasivos_margen:
+* mcaja_ahorro
+* mrentabilidad
+* mrentabilidad_annual
+* mcuentas_saldo
+* mcuenta_corriente
+* mtransferencias_emitidas
+* !mactivos_margen
+
+Correlaciones de cpayroll_trx:
+* cextraccion_autoservicio
+* mpayroll
+* ctarjeta_debito_trx
+* !ccomisiones_mantenimiento
+* !mcomisiones_mantenimiento
+* !cliente_edad
+
+
+Ideas de variables:
+* (mtransferencias_emitidas - mtransferencias_recibidas) / mtransferencias_recibidas => Variacion porcentual de egresos/ingresos por transferencias
+* (ctransferencias_emitidas / ctrx_quarter) => Proporción de transferencias emitidas en el total de movimientos
+* (mpasivos_margen / mactivos_margen) => Proporción inversiones sobre intereses
+* (mpasivos_margen / ctrx_quarter) => Proporción entre las variables de mayor significancia
+* (mpayroll / cpayroll_trx) => Monto promedio por acreditación de haberes (unico sueldo o multiples pagos pequeños?)

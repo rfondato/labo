@@ -1,0 +1,2 @@
+fecha	cp	minsplit	minbucket	maxdepth	xval_folds	ganancia	iteracion
+20220523 204130	-0.52654137	684	335	6	5	9893000	1
