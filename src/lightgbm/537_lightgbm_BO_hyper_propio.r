@@ -22,7 +22,7 @@ require("DiceKriging")
 require("mlrMBO")
 
 
-kBO_iter  <- 150   #aumento las iteraciones ya que tengo dos hiperparametros mas
+kBO_iter  <- 500   #aumento las iteraciones ya que tengo dos hiperparametros mas
 
 #Aqui se cargan los hiperparametros
 hs <- makeParamSet( 
@@ -152,13 +152,13 @@ dataset  <- fread("./datasets/paquete_premium_202011.csv.gz")
 #creo la carpeta donde va el experimento
 # HT  representa  Hiperparameter Tuning
 dir.create( "./exp/",  showWarnings = FALSE ) 
-dir.create( "./exp/HT5370/", showWarnings = FALSE )
-setwd("~/buckets/b1/exp/HT5370/")   #Establezco el Working Directory DEL EXPERIMENTO
+dir.create( "./exp/lightGBM-hyper-500/", showWarnings = FALSE )
+setwd("~/buckets/b1/exp/lightGBM-hyper-500/")   #Establezco el Working Directory DEL EXPERIMENTO
 
 
 #en estos archivos quedan los resultados
-kbayesiana  <- "HT537.RDATA"
-klog        <- "HT537.txt"
+kbayesiana  <- "lightGBM-hyper-500.RDATA"
+klog        <- "lightGBM-hyper-500.txt"
 
 
 GLOBAL_iteracion  <- 0   #inicializo la variable global
