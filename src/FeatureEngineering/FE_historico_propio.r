@@ -575,15 +575,16 @@ TendenciaYmuchomas( dataset,
                     ratiomax=  TRUE
                   )
 
+CanaritosImportancia()
+
 cols_lagueables  <- copy( setdiff( colnames(dataset), kcampos_fijos ) )
 
 #Comentar si no se quiera que funcione
 Lags( cols_lagueables, 1, TRUE )   #calculo los lags de orden  1
+CanaritosImportancia()
 Lags( cols_lagueables, 2, TRUE )   #calculo los lags de orden  2
+CanaritosImportancia()
 Lags( cols_lagueables, 3, TRUE )   #calculo los lags de orden  3
-
-#reduciendo la cantidad de atributos
-#comentar si no se quiere que corra
 CanaritosImportancia()
 
 cols_lagueables  <- intersect( cols_lagueables,  colnames(dataset) )

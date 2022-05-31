@@ -51,16 +51,27 @@ dapply  <- fread("./datasets/paquete_premium_202101.csv")
 prediccion  <- predict( modelo, 
                         data.matrix( dapply[, campos_buenos, with=FALSE ]) )
 
-
 #Genero la entrega para Kaggle
 entrega  <- as.data.table( list( "numero_de_cliente"= dapply[  , numero_de_cliente],
-                                 "Predicted"= as.integer( prediccion > 0.014278062)  ) ) #genero la salida
+                                 "prob"= prediccion ) )
+
+#ordeno por probabilidad descendente
+setorder( entrega, -prob )
 
 dir.create( "./labo/exp/",  showWarnings = FALSE ) 
 dir.create( "./labo/exp/KA5710/", showWarnings = FALSE )
-archivo_salida  <- "./labo/exp/KA5710/KA_571_001.csv"
 
-#genero el archivo para Kaggle
-fwrite( entrega, 
-        file= archivo_salida, 
-        sep= "," )
+setwd( "./labo/exp/KA5710/" )
+
+#genero archivos con los  "envios" mejores
+#deben subirse "inteligentemente" a Kaggle para no malgastar submits
+for( envios  in  c( 10000, 10500, 11000, 11500, 12000, 12500, 13000, 13500 ) )
+{
+  entrega[  , Predicted := 0L ]
+  entrega[ 1:envios, Predicted := 1L ]
+  
+  fwrite( entrega[ , list(numero_de_cliente, Predicted)], 
+          file= paste0( "KA_571_", envios, ".csv" ),
+          sep= "," )
+}
+
