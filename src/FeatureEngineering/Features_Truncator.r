@@ -100,6 +100,10 @@ Truncar_Hasta  <- function( n_features = 500 )
   tb_importancia  <- lgb.importance( model= modelo )
   tb_importancia[  , pos := .I ]
   
+  fwrite( tb_importancia, 
+          file= paste0( "truncator_importancia.txt"),
+          sep= "\t" )
+  
   col_utiles  <- tb_importancia[ pos <= n_features,  Feature ]
   col_utiles  <-  unique( c( col_utiles,  campos_fijos ) )
   col_inutiles  <- setdiff( colnames(dataset), col_utiles )
