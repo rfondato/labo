@@ -27,17 +27,15 @@ kBO_iter  <- 500   #aumento las iteraciones ya que tengo dos hiperparametros mas
 #Aqui se cargan los hiperparametros
 hs <- makeParamSet( 
          makeNumericParam("learning_rate",    lower=  0.01 , upper=    0.3),
-         makeNumericParam("feature_fraction", lower=  0.2  , upper=    1.0),
+         makeNumericParam("feature_fraction", lower=  0.1  , upper=    1.0),
          makeIntegerParam("min_data_in_leaf", lower=  0    , upper= 8000),
          makeIntegerParam("num_leaves",       lower= 16L   , upper= 1024L),
          makeNumericParam("prob_corte",       lower= 1/120 , upper=  1/20),
-         makeNumericParam("lambda_l1",        lower=  0    , upper=   100),
-         makeNumericParam("lambda_l2",        lower=  0    , upper=   100),
-         makeIntegerParam("max_depth",       lower= 2L   , upper= 30L),
-         makeNumericParam("min_gain_to_split",        lower=  0.0    , upper=   1.0),
-         makeNumericParam("bagging_fraction",        lower=  0.0    , upper=   1.0),
-         makeIntegerParam("bagging_freq",       lower= 1L   , upper= 30L),
-         makeNumericParam("scale_pos_weight",        lower=  0.01    , upper=   300.0)
+         makeIntegerParam("max_depth",       lower= -1L   , upper= 30L),
+         makeNumericParam("neg_bagging_fraction",        lower=  0.1    , upper=   1.0),
+         makeNumericParam("pos_bagging_fraction",        lower=  0.8    , upper=   1.0),
+         makeIntegerParam("bagging_freq",        lower=  2L    , upper=   30L),
+         makeNumericParam("scale_pos_weight",        lower=  0.01    , upper=   10.0)
         )
 
 ksemilla_azar  <- 240007  #Aqui poner la propia semilla
@@ -71,9 +69,10 @@ loguear  <- function( reg, arch=NA, folder="./exp/", ext=".txt", verbose=TRUE )
 fganancia_logistic_lightgbm   <- function( probs, datos) 
 {
   vlabels  <- get_field(datos, "label")
+  vpesos   <- get_field(datos, "weight")
 
   gan  <- sum( (probs > PROB_CORTE  ) *
-               ifelse( vlabels== 1, 59000, -1000 ) )
+               ifelse( vlabels==1 & vpesos > 1, 59000, -1000 ) )
 
 
   return( list( "name"= "ganancia", 
@@ -152,13 +151,13 @@ dataset  <- fread("./datasets/paquete_premium_202011.csv.gz")
 #creo la carpeta donde va el experimento
 # HT  representa  Hiperparameter Tuning
 dir.create( "./exp/",  showWarnings = FALSE ) 
-dir.create( "./exp/lightGBM-hyper-500/", showWarnings = FALSE )
-setwd("~/buckets/b1/exp/lightGBM-hyper-500/")   #Establezco el Working Directory DEL EXPERIMENTO
+dir.create( "./exp/lightGBM-hyper-500-v2/", showWarnings = FALSE )
+setwd("~/buckets/b1/exp/lightGBM-hyper-500-v2/")   #Establezco el Working Directory DEL EXPERIMENTO
 
 
 #en estos archivos quedan los resultados
-kbayesiana  <- "lightGBM-hyper-500.RDATA"
-klog        <- "lightGBM-hyper-500.txt"
+kbayesiana  <- "lightGBM-hyper-500-v2.RDATA"
+klog        <- "lightGBM-hyper-500-v2.txt"
 
 
 GLOBAL_iteracion  <- 0   #inicializo la variable global
@@ -172,8 +171,9 @@ if( file.exists(klog) )
 
 
 
-#paso la clase a binaria que tome valores {0,1}  enteros
-dataset[ , clase01 := ifelse( clase_ternaria=="BAJA+2", 1L, 0L) ]
+# Paso la clase a binaria que tome valores {0,1} enteros
+# Estrategia: Tratar a BAJA+1 y BAJA+2 como positivos (1) porque son parecidos
+dataset[ , clase01 := ifelse( clase_ternaria=="CONTINUA", 0, 1 ) ]
 
 
 #los campos que se van a utilizar
@@ -181,7 +181,8 @@ campos_buenos  <- setdiff( colnames(dataset), c("clase_ternaria","clase01") )
 
 #dejo los datos en el formato que necesita LightGBM
 dtrain  <- lgb.Dataset( data= data.matrix(  dataset[ , campos_buenos, with=FALSE]),
-                        label= dataset$clase01 )
+                        label= dataset$clase01,
+                        weight=dataset[, ifelse(clase_ternaria=="BAJA+2", 1.0000001, 1.0)])
 
 
 
