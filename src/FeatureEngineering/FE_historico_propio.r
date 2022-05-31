@@ -582,11 +582,14 @@ cols_lagueables  <- copy( setdiff( colnames(dataset), kcampos_fijos ) )
 #Comentar si no se quiera que funcione
 Lags( cols_lagueables, 1, TRUE )   #calculo los lags de orden  1
 CanaritosImportancia()
+cols_lagueables  <- intersect( cols_lagueables,  colnames(dataset) )
+
 Lags( cols_lagueables, 2, TRUE )   #calculo los lags de orden  2
 CanaritosImportancia()
+cols_lagueables  <- intersect( cols_lagueables,  colnames(dataset) )
+
 Lags( cols_lagueables, 3, TRUE )   #calculo los lags de orden  3
 CanaritosImportancia()
-
 cols_lagueables  <- intersect( cols_lagueables,  colnames(dataset) )
 
 
