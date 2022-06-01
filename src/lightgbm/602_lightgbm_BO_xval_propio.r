@@ -255,7 +255,7 @@ obj.fun  <- makeSingleObjectiveFunction(
               has.simple.signature = FALSE   #paso los parametros en una lista
              )
 
-ctrl  <- makeMBOControl( save.on.disk.at= 1,  save.file.path= kbayesiana)  #se graba en cada iteración
+ctrl  <- makeMBOControl( save.on.disk.at.time= 600,  save.file.path= kbayesiana)  #se graba en cada iteración
 ctrl  <- setMBOControlTermination(ctrl, iters= kBO_iter )   #cantidad de iteraciones
 ctrl  <- setMBOControlInfill(ctrl, crit= makeMBOInfillCritEI() )
 

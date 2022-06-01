@@ -28,10 +28,10 @@ dtrain  <- xgb.DMatrix( data= data.matrix(  dataset[ , campos_buenos, with=FALSE
 #genero el modelo con los parametros por default
 modelo  <- xgb.train( data= dtrain,
                       param= list( objective=       "binary:logistic",
-                                   max_depth=           6,
-                                   min_child_weight=    1,
-                                   eta=                 0.3,
-                                   colsample_bytree=    1.0,
+                                   max_depth=           2,
+                                   min_child_weight=    6,
+                                   eta=                 0.03436789,
+                                   colsample_bytree=    0.2002550,
                                    gamma=                0.0,  #por ahora, lo dejo fijo, equivalente a  min_gain_to_split
                                    alpha=                0.0,  #por ahora, lo dejo fijo, equivalente a  lambda_l1
                                    lambda=               0.0,  #por ahora, lo dejo fijo, equivalente a  lambda_l2
@@ -42,7 +42,7 @@ modelo  <- xgb.train( data= dtrain,
                                    max_leaves=           0,    #ya lo voy a cambiar
                                    scale_pos_weight=     1.0   #por ahora, lo dejo fijo
                                    ),
-                      nrounds= 34
+                      nrounds= 739
                     )
 
 #aplico el modelo a los datos sin clase
@@ -55,7 +55,7 @@ prediccion  <- predict( modelo,
 
 #Genero la entrega para Kaggle
 entrega  <- as.data.table( list( "numero_de_cliente"= dapply[  , numero_de_cliente],
-                                 "Predicted"= as.integer( prediccion > 1/60 ) )  ) #genero la salida
+                                 "Predicted"= as.integer( prediccion > 0.013468462 ) )  ) #genero la salida
 
 dir.create( "./labo/exp/",  showWarnings = FALSE ) 
 dir.create( "./labo/exp/KA5610/", showWarnings = FALSE )

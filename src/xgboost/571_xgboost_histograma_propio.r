@@ -36,12 +36,12 @@ modelo  <- xgb.train( data= dtrain,
                                    max_depth=            0,    # NO lo limito por altura
                                    max_bin=            256,    #por ahora fijo
                                    scale_pos_weight=     1.0,   #por ahora, lo dejo fijo
-                                   max_leaves=          906,
+                                   max_leaves=          2,
                                    min_child_weight=    10,
-                                   eta=                 0.01000428,
-                                   colsample_bytree=    0.7379721
+                                   eta=                 0.18356421,
+                                   colsample_bytree=    0.6244449
                                    ),
-                      nrounds= 244
+                      nrounds= 364
                     )
 
 #aplico el modelo a los datos sin clase
@@ -65,7 +65,7 @@ setwd( "./labo/exp/KA5710/" )
 
 #genero archivos con los  "envios" mejores
 #deben subirse "inteligentemente" a Kaggle para no malgastar submits
-for( envios  in  c( 10000, 10500, 11000, 11500, 12000, 12500, 13000, 13500 ) )
+for( envios  in  c( 10000, 10500, 11000, 11500, 12000, 12500 ) )
 {
   entrega[  , Predicted := 0L ]
   entrega[ 1:envios, Predicted := 1L ]
