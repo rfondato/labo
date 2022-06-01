@@ -6,6 +6,6 @@ ranger mejores hp			  12159000							17.14967
 light-gbm default			  6608000							9.30982
 xgboost default				  9599000							16.65468
 xgboost histograma default    8817000							16.54469
-light-gbm mejores hp		  13945000							16.76968
-xgboost mejores hp			  13781000							-115.30284
-xgboost hist mejores hp
+light-gbm mejores hp		  13746000							18.20465
+xgboost mejores hp			  13733000							18.84464
+xgboost hist mejores hp		  13781000							16.28469

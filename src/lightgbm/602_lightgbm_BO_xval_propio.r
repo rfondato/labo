@@ -41,7 +41,7 @@ hs <- makeParamSet(
 
 kprefijo       <- "lightGBM_Hist_BO_HT"
 ksemilla_azar  <- 240007  #Aqui poner la propia semilla
-kdataset       <- "./datasets/paquete_premium_ext_001_trunc.csv.gz"
+kdataset       <- "./datasets/paquete_premium_ext_001_trunc_250.csv.gz"
 
 
 #donde entrenar
@@ -230,6 +230,8 @@ dataset[ foto_mes >= ktrain_mes_desde &
          ! (foto_mes %in% ktrain_meses_malos ) ,
          train  := 1L ]
 
+dataset = dataset[train == 1L]
+
 #--------------------------------------
 
 #dejo los datos en el formato que necesita LightGBM
@@ -253,7 +255,7 @@ obj.fun  <- makeSingleObjectiveFunction(
               has.simple.signature = FALSE   #paso los parametros en una lista
              )
 
-ctrl  <- makeMBOControl( save.on.disk.at.time= 600,  save.file.path= kbayesiana)  #se graba cada 600 segundos
+ctrl  <- makeMBOControl( save.on.disk.at= 1,  save.file.path= kbayesiana)  #se graba en cada iteración
 ctrl  <- setMBOControlTermination(ctrl, iters= kBO_iter )   #cantidad de iteraciones
 ctrl  <- setMBOControlInfill(ctrl, crit= makeMBOInfillCritEI() )
 
