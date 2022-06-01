@@ -11,17 +11,11 @@ options(error = function() {
   stop("exiting after script error") 
 })
 
-dataset_entrada <- "paquete_premium_ext_001.csv.gz"
-dataset_salida  <- "paquete_premium_ext_001_trunc.csv.gz"
-campos_fijos  <- c( "numero_de_cliente", "clase_ternaria", "foto_mes", "mes" )
-
-ReportarCampos  <- function( dataset )
-{
-  cat( deparse(sys.calls()[[sys.nframe()-1]]),  #el nombre de la funcion desde donde se llamo
-       "La cantidad de campos es ", 
-       ncol(dataset) ,
-       "\n" )
-}
+dataset_entrada <- "paquete_premium_ext_001.csv.gz" # Dataset a truncar
+dataset_salida  <- "paquete_premium_ext_001_trunc.csv.gz" # Nombre del dataset truncado
+campos_fijos  <- c( "numero_de_cliente", "clase_ternaria", "foto_mes", "mes" ) # Campos que quedan fijos (no se remueven)
+num_features <- 500 # Cantidad de variables deseada
+archivo_importancia <- "trunc_importancia.txt" # Nombre del archivo de importancia de cada columna ANTES de truncar (para debuggear)
 
 #------------------------------------------------------------------------------
 fganancia_lgbm_meseta  <- function(probs, datos) 
@@ -101,7 +95,7 @@ Truncar_Hasta  <- function( n_features = 500 )
   tb_importancia[  , pos := .I ]
   
   fwrite( tb_importancia, 
-          file= paste0( "truncator_importancia.txt"),
+          file= paste0(archivo_importancia),
           sep= "\t" )
   
   col_utiles  <- tb_importancia[ pos <= n_features,  Feature ]
@@ -121,7 +115,7 @@ setwd( "~/buckets/b1/datasets/" )
 
 dataset <- fread( dataset_entrada )
 
-Truncar_Hasta(500)
+Truncar_Hasta(num_features)
 
 #dejo la clase como ultimo campo
 nuevo_orden  <- c( setdiff( colnames( dataset ) , "clase_ternaria" ) , "clase_ternaria" )
