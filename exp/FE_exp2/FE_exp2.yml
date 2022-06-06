@@ -1,0 +1,78 @@
+googlecloud:
+  RAM:   128
+  vCPU:    8
+  disk:  256
+
+
+experiment:
+  script: "src/completo/FE_combinaciones.r"
+  restart: FALSE
+  name: "exp"
+  requires: [ "DT0001" ]
+
+
+param:
+  corregir: TRUE    # se se corrige los campos/foto_mes  MALOS
+  variablesdrift: [] # variables que se eliminan porque estan mal en el futuro
+  variablesmanuales: TRUE # variables artesanales
+  acumulavars: FALSE   # a lo nuevo lo va aplicando (acumula lags de lags)
+  rankear: TRUE # nuevas columnas con el ranking de las anteriores
+
+  tendenciaYmuchomas: # Tendencias, avgs, max, mins, etc.
+    correr: TRUE
+    ventanas: [3, 6, 12]
+    tendencia: TRUE
+    minimo:    TRUE
+    maximo:    TRUE
+    promedio:  TRUE
+    ratioavg:  TRUE
+    ratiomax:  TRUE
+    canaritosratio: 0.2
+
+  #lags y sus deltas
+  lag:   [ TRUE, TRUE, TRUE ]
+  delta: [ TRUE, TRUE, TRUE ]
+  canaritosratio: [ 0, 0, 0.2 ]
+
+  tony:  FALSE
+  
+  # Cruzar variables más importantes
+  cruzas:
+    correr: TRUE
+    cantidad: 20 # Cantidad de variables top a cruzar
+    rankear: TRUE # Agregar rankings de las variables cruzadas
+    agregar_bajas: TRUE # Cruzar también con cantidad de bajas del mes anterior
+    tendencias: # Calcular tendencias en diferentes ventanas para las cruzas
+        ventanas: [3, 6, 12]
+        tendencia: TRUE
+        minimo:    TRUE
+        maximo:    TRUE
+        promedio:  TRUE
+        ratioavg:  TRUE
+        ratiomax:  TRUE
+        canaritosratio: 0.2 # Aplicar canaritos entre diferentes ventanas, con éste ratio
+    lags: # Calcular diferentes lags y deltas para las cruzas
+        lag:   [ TRUE, TRUE, TRUE ]
+        delta: [ TRUE, TRUE, TRUE ]
+    canaritosratio: 0.2 # Canaritos final después de realizar toda la operación de cruza
+
+  truncar: 1000 # Truncar el dataset a las X variables más importantes
+  
+  files:
+    input:
+      dentrada: [ "dataset" ]
+    output:
+      dsalida: "paquete_premium_ext.csv.gz"
+
+  const:
+    clase: "clase_ternaria"
+    futuro: [ 202101 ]
+    campos_sort:  [ "numero_de_cliente", "foto_mes" ]   #por donde hago el sort inicial
+    campos_fijos: [ "numero_de_cliente", "foto_mes", "mes", "clase_ternaria" ]
+    modelo:
+
+
+environment:
+  repo_dir: "~/labo/"
+  exp_dir:  "~/buckets/b1/exp/"
+  catalog:  "catalogo.txt"
