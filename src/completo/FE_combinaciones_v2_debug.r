@@ -387,6 +387,8 @@ TendenciaYmuchomas  <- function( dataset, cols, ventana=6, tendencia=TRUE, minim
 {
   gc()
   cat( "Agregando tendencias y más con ventana ", ventana, "\n")
+  ReportarCampos( dataset )
+  
   #Esta es la cantidad de meses que utilizo para la historia
   ventana_regresion  <- ventana
   
@@ -657,6 +659,8 @@ AgregarRankingsTendenciasLags <- function(dataset, cols, rankear, tendencias, la
   {
     nuevas_cols = c()
     for (ventana in tendencias$ventanas) {
+      cat("Campos antes de llamar a tendencias con ventana: ", ventana, "\n")
+      ReportarCampos(dataset)
       nuevas_cols = union(nuevas_cols, TendenciaYmuchomas( dataset, 
                           cols= cols,
                           ventana=   ventana,
@@ -667,6 +671,8 @@ AgregarRankingsTendenciasLags <- function(dataset, cols, rankear, tendencias, la
                           ratioavg=  tendencias$ratioavg,
                           ratiomax=  tendencias$ratiomax )
                       )
+      cat("Campos después de llamar a tendencias con ventana: ", ventana, "\n")
+      ReportarCampos(dataset)
       
       tb_importancia = CanaritosImportancia( dataset, canaritos_ratio= canaritos_ratio )
       cols = intersect( colnames(dataset), cols ) # Luego de canaritos, quito las columnas que fueron removidas del dataset
