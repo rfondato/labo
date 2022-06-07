@@ -698,7 +698,7 @@ AgregarRankingsTendenciasLags <- function(dataset, cols, rankear, tendencias, la
 
 setwd("~/buckets/b1/")
 
-EXP <<- read_yaml("./exp/debug/debug.yaml")
+EXP <<- read_yaml("./exp/debug/debug.yml")
 PARAM  <<- EXP$param
 
 # Cargo el dataset
