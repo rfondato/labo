@@ -408,37 +408,31 @@ TendenciaYmuchomas  <- function( dataset, cols, ventana=6, tendencia=TRUE, minim
   
   for(  campo  in   cols )
   {
-    nueva_col     <- fhistC( dataset[ , get(campo) ], vector_desde ) 
+    nueva_col <- fhistC( dataset[ , get(campo) ], vector_desde ) 
     
     if(tendencia) {
-      tend_col = paste0( campo, "_tend", ventana)
-      nuevas_cols = c(nuevas_cols, tend_col)
-      dataset[ , eval(tend_col) := nueva_col[ (0*last +1):(1*last) ]  ]
+      nuevas_cols = union(nuevas_cols, paste0( campo, "_tend", ventana))
+      dataset[ , paste0( campo, "_tend", ventana) := nueva_col[ (0*last +1):(1*last) ]  ]
     }
     if(minimo){
-      min_col = paste0( campo, "_min", ventana)
-      nuevas_cols = c(nuevas_cols, min_col)
-      dataset[ , eval(min_col) := nueva_col[ (1*last +1):(2*last) ]  ]
+      nuevas_cols = union(nuevas_cols, paste0( campo, "_min", ventana))
+      dataset[ , paste0( campo, "_min", ventana) := nueva_col[ (1*last +1):(2*last) ]  ]
     }
     if(maximo){ 
-      max_col = paste0( campo, "_max", ventana)
-      nuevas_cols = c(nuevas_cols, max_col)
-      dataset[ , eval(max_col) := nueva_col[ (2*last +1):(3*last) ]  ]
+      nuevas_cols = union(nuevas_cols, paste0( campo, "_max", ventana))
+      dataset[ , paste0( campo, "_max", ventana) := nueva_col[ (2*last +1):(3*last) ]  ]
     }
     if(promedio){
-      avg_col = paste0( campo, "_avg", ventana)
-      nuevas_cols = c(nuevas_cols, avg_col)
-      dataset[ , eval(avg_col) := nueva_col[ (3*last +1):(4*last) ]  ]
+      nuevas_cols = union(nuevas_cols, paste0( campo, "_avg", ventana))
+      dataset[ , paste0( campo, "_avg", ventana) := nueva_col[ (3*last +1):(4*last) ]  ]
     }
     if(ratioavg){
-      ratioavg_col = paste0( campo, "_ratioavg", ventana)
-      nuevas_cols = c(nuevas_cols, ratioavg_col)
-      dataset[ , eval(ratioavg_col) := get(campo) /nueva_col[ (3*last +1):(4*last) ]  ]
+      nuevas_cols = union(nuevas_cols, paste0( campo, "_ratioavg", ventana))
+      dataset[ , paste0( campo, "_ratioavg", ventana) := get(campo) /nueva_col[ (3*last +1):(4*last) ]  ]
     }
     if(ratiomax){
-      ratiomax_col = paste0( campo, "_ratiomax", ventana)
-      nuevas_cols = c(nuevas_cols, ratiomax_col)
-      dataset[ , eval(ratiomax_col) := get(campo) /nueva_col[ (2*last +1):(3*last) ]  ]
+      nuevas_cols = union(nuevas_cols, paste0( campo, "_ratiomax", ventana))
+      dataset[ , paste0( campo, "_ratiomax", ventana) := get(campo) /nueva_col[ (2*last +1):(3*last) ]  ]
     }
   }
   
@@ -446,7 +440,7 @@ TendenciaYmuchomas  <- function( dataset, cols, ventana=6, tendencia=TRUE, minim
   
   cat( "Tendencias y más con ventana ", ventana, " agregadas\n")
   
-  return (nuevas_cols)
+  return ( list("dataset" = dataset, "cols" = nuevas_cols) )
 }
 
 #------------------------------------------------------------------------------
@@ -661,16 +655,20 @@ AgregarRankingsTendenciasLags <- function(dataset, cols, rankear, tendencias, la
     for (ventana in tendencias$ventanas) {
       cat("Campos antes de llamar a tendencias con ventana: ", ventana, "\n")
       ReportarCampos(dataset)
-      nuevas_cols = union(nuevas_cols, TendenciaYmuchomas( dataset, 
-                          cols= cols,
-                          ventana=   ventana,
-                          tendencia= tendencias$tendencia,
-                          minimo=    tendencias$minimo,
-                          maximo=    tendencias$maximo,
-                          promedio=  tendencias$promedio,
-                          ratioavg=  tendencias$ratioavg,
-                          ratiomax=  tendencias$ratiomax )
-                      )
+      
+      resultados = TendenciaYmuchomas( dataset, 
+                                       cols= cols,
+                                       ventana=   ventana,
+                                       tendencia= tendencias$tendencia,
+                                       minimo=    tendencias$minimo,
+                                       maximo=    tendencias$maximo,
+                                       promedio=  tendencias$promedio,
+                                       ratioavg=  tendencias$ratioavg,
+                                       ratiomax=  tendencias$ratiomax )
+      
+      nuevas_cols = union(nuevas_cols, resultados$cols)
+      dataset = resultados$dataset
+      
       cat("Campos después de llamar a tendencias con ventana: ", ventana, "\n")
       ReportarCampos(dataset)
       
