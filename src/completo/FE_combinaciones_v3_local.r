@@ -5,11 +5,8 @@ gc()             #garbage collection
 require("data.table")
 require("Rcpp")
 require("rlist")
-require("yaml")
 
 require("lightgbm")
-
-source( "~/labo/src/lib/exp_lib.r" )
 
 #------------------------------------------------------------------------------
 
@@ -238,8 +235,9 @@ AgregarVariables  <- function( dataset )
   nans_qty  <- sum( unlist( nans) )
   if( nans_qty > 0 )
   {
-    cat( "ATENCION, hay", nans_qty, "valores NaN 0/0 en tu dataset. Seran pasados a NA\n" )
-    dataset[mapply(is.nan, dataset)] <<- NA
+    cat( "ATENCION, hay", nans_qty, "valores NaN 0/0 en tu dataset. Seran pasados arbitrariamente a 0\n" )
+    cat( "Si no te gusta la decision, modifica a gusto el programa!\n\n")
+    dataset[mapply(is.nan, dataset)] <<- 0
   }
 
   ReportarCampos( dataset )
@@ -460,20 +458,19 @@ CanaritosImportancia  <- function( canaritos_ratio=0.2 )
   campos_buenos  <- setdiff( colnames(dataset), c("clase_ternaria","clase01" ) )
 
   azar  <- runif( nrow(dataset) )
-  dataset[ , entrenamiento := foto_mes>= 202001 &  foto_mes<= 202010 &  foto_mes!=202006 & ( clase01==1 | azar < 0.10 ) ]
-
+  dataset[ , entrenamiento := azar < 0.80 ]
+  
   dtrain  <- lgb.Dataset( data=    data.matrix(  dataset[ entrenamiento==TRUE, campos_buenos, with=FALSE]),
                           label=   dataset[ entrenamiento==TRUE, clase01],
                           weight=  dataset[ entrenamiento==TRUE, ifelse(clase_ternaria=="BAJA+2", 1.0000001, 1.0)],
                           free_raw_data= FALSE
-                        )
-
-  dvalid  <- lgb.Dataset( data=    data.matrix(  dataset[ foto_mes==202011, campos_buenos, with=FALSE]),
-                          label=   dataset[ foto_mes==202011, clase01],
-                          weight=  dataset[ foto_mes==202011, ifelse(clase_ternaria=="BAJA+2", 1.0000001, 1.0)],
+  )
+  
+  dvalid  <- lgb.Dataset( data=    data.matrix(  dataset[ entrenamiento==FALSE, campos_buenos, with=FALSE]),
+                          label=   dataset[ entrenamiento==FALSE, clase01],
+                          weight=  dataset[ entrenamiento==FALSE, ifelse(clase_ternaria=="BAJA+2", 1.0000001, 1.0)],
                           free_raw_data= FALSE
-                          )
-
+  )
 
   param <- list( objective= "binary",
                  metric= "custom",
@@ -576,13 +573,49 @@ CruzarVariablesImportantes <- function(dataset, tb_importancia, funcion_cruza, n
 }
 
 #------------------------------------------------------------------------------
+
+SimularYAML <- function () {
+  return (
+    list(
+      "corregir" = TRUE,
+      "variablesmanuales" = TRUE,
+      "rankear" = TRUE,
+      "const" = list(
+        "campos_sort" = c("numero_de_cliente", "foto_mes"),
+        "campos_fijos" = c("numero_de_cliente", "foto_mes", "mes", "clase_ternaria"),
+        "clase" = "clase_ternaria"
+      ),
+      "tendenciaYmuchomas" = list(
+        "correr" = TRUE,
+        "ventanas" = c(3, 6, 12),
+        "tendencia" = TRUE,
+        "minimo" = TRUE,
+        "maximo" = TRUE,
+        "promedio" = TRUE,
+        "ratioavg" = TRUE,
+        "ratiomax" = TRUE
+      ),
+      "lags" = c(1,2,3),
+      "canaritos_ratio" = 0.2,
+      "cruzas" = 10,
+      "truncar" = 1000
+    )
+  )
+}
+
+#------------------------------------------------------------------------------
+
+#------------------------------------------------------------------------------
 #Aqui empieza el programa
 
-exp_iniciar( )
+# Params locales que simula YAML
+PARAM = SimularYAML()
 
 #cargo el dataset
-nom_arch  <- exp_nombre_archivo( PARAM$files$input$dentrada )
-dataset   <- fread( nom_arch )
+setwd("c:\\data_mining\\")
+dataset <- fread( "datasets\\paquete_premium_202011.csv" )
+
+setwd("c:\\data_mining\\debug\\")
 
 #ordeno el dataset por <numero_de_cliente, foto_mes> para poder hacer lags
 setorderv( dataset, PARAM$const$campos_sort )
@@ -654,7 +687,6 @@ if ( PARAM$truncar > 0 ) {
   cat("Truncando variables a: ", PARAM$truncar, "\n")
   cols_finales = union(tb_importancia[pos <= PARAM$truncar, Feature], PARAM$const$campos_fijos)
   dataset = dataset[, ..cols_finales]
-  gc()
   ReportarCampos(dataset)
   cat("Variables truncadas\n")
 }
@@ -662,25 +694,3 @@ if ( PARAM$truncar > 0 ) {
 #dejo la clase como ultimo campo
 nuevo_orden  <- c( setdiff( colnames( dataset ) , PARAM$const$clase ) , PARAM$const$clase )
 setcolorder( dataset, nuevo_orden )
-
-
-#Grabo el dataset
-fwrite( dataset,
-        paste0( PARAM$files$output ),
-        logical01= TRUE,
-        sep= "," )
-
-
-
-# grabo catalogo   ------------------------------------------------------------
-# es lo ultimo que hago, indica que llegue a generar la salida
-#no todos los archivos generados pasan al catalogo
-
-exp_catalog_add( action= "FE",
-                 type=   "file",
-                 key=    "dataset",
-                 value = PARAM$files$output )
-
-#finalizo el experimento
-#HouseKeeping
-exp_finalizar( )

@@ -5,11 +5,8 @@ gc()             #garbage collection
 require("data.table")
 require("Rcpp")
 require("rlist")
-require("yaml")
 
 require("lightgbm")
-
-source( "~/labo/src/lib/exp_lib.r" )
 
 #------------------------------------------------------------------------------
 
@@ -460,19 +457,19 @@ CanaritosImportancia  <- function( canaritos_ratio=0.2 )
   campos_buenos  <- setdiff( colnames(dataset), c("clase_ternaria","clase01" ) )
 
   azar  <- runif( nrow(dataset) )
-  dataset[ , entrenamiento := foto_mes>= 202001 &  foto_mes<= 202010 &  foto_mes!=202006 & ( clase01==1 | azar < 0.10 ) ]
-
+  dataset[ , entrenamiento := azar < 0.80 ]
+  
   dtrain  <- lgb.Dataset( data=    data.matrix(  dataset[ entrenamiento==TRUE, campos_buenos, with=FALSE]),
                           label=   dataset[ entrenamiento==TRUE, clase01],
                           weight=  dataset[ entrenamiento==TRUE, ifelse(clase_ternaria=="BAJA+2", 1.0000001, 1.0)],
                           free_raw_data= FALSE
-                        )
-
-  dvalid  <- lgb.Dataset( data=    data.matrix(  dataset[ foto_mes==202011, campos_buenos, with=FALSE]),
-                          label=   dataset[ foto_mes==202011, clase01],
-                          weight=  dataset[ foto_mes==202011, ifelse(clase_ternaria=="BAJA+2", 1.0000001, 1.0)],
+  )
+  
+  dvalid  <- lgb.Dataset( data=    data.matrix(  dataset[ entrenamiento==FALSE, campos_buenos, with=FALSE]),
+                          label=   dataset[ entrenamiento==FALSE, clase01],
+                          weight=  dataset[ entrenamiento==FALSE, ifelse(clase_ternaria=="BAJA+2", 1.0000001, 1.0)],
                           free_raw_data= FALSE
-                          )
+  )
 
 
   param <- list( objective= "binary",
@@ -576,13 +573,149 @@ CruzarVariablesImportantes <- function(dataset, tb_importancia, funcion_cruza, n
 }
 
 #------------------------------------------------------------------------------
+
+ProcesarRankings <- function(cols_a_procesar) {
+  if( PARAM$rankear ) {
+    setorder( dataset, foto_mes, numero_de_cliente )
+    Rankeador( dataset, cols_a_procesar)
+    setorderv( dataset, PARAM$const$campos_sort )
+  }
+}
+
+ProcesarTendencias <- function(cols_a_procesar) {
+  
+  tb_importancia = NULL
+  
+  if( PARAM$tendenciaYmuchomas$correr ) 
+  {
+    p  <- PARAM$tendenciaYmuchomas
+    
+    for (ventana in p$ventanas) {
+      TendenciaYmuchomas( cols= cols_a_procesar,
+                          ventana=   ventana,
+                          tendencia= p$tendencia,
+                          minimo=    p$minimo,
+                          maximo=    p$maximo,
+                          promedio=  p$promedio,
+                          ratioavg=  p$ratioavg,
+                          ratiomax=  p$ratiomax
+      )
+      tb_importancia = CanaritosImportancia( canaritos_ratio= PARAM$canaritos_ratio )
+      cols_a_procesar = intersect(colnames(dataset), cols_a_procesar)
+    }
+    
+  }
+  
+  return( tb_importancia )
+}
+
+ProcesarLags <- function(cols_a_procesar) {
+  tb_importancia = NULL
+  
+  for( lag in PARAM$lags )
+  {
+    Lags( cols_a_procesar, lag, TRUE )   #calculo los lags de orden lag
+    
+    tb_importancia = CanaritosImportancia( canaritos_ratio= PARAM$canaritos_ratio )
+    cols_a_procesar = intersect(colnames(dataset), cols_a_procesar)
+  }
+  
+  return(tb_importancia)
+}
+
+ProcesarCruzas <- function(dataset, tb_importancia, n_cruzas = 100) {
+  
+  if (n_cruzas > 0) {
+    nuevas_cols = CruzarVariablesImportantes(
+      dataset,
+      tb_importancia,
+      function(dataset, c1, c2) {
+        if (!(c1 %in% colnames(dataset)) || !(c2 %in% colnames(dataset)))
+          return(c())
+        
+        dataset[get(c2) > 0, paste0("cruza_ratio_", c1, '_vs_', c2) := (get(c1) / get(c2))]
+        dataset[, paste0("cruza_max_", c1, '_vs_', c2) := pmax( get(c1),  get(c2) )]
+        dataset[, paste0("cruza_min_", c1, '_vs_', c2) := pmin( get(c1),  get(c2) )]
+        dataset[, paste0("cruza_avg_", c1, '_vs_', c2) := ((get(c1) + get(c2)) / 2)]
+        
+        return ( c(paste0("cruza_ratio_", c1, '_vs_', c2), 
+                   paste0("cruza_max_", c1, '_vs_', c2),
+                   paste0("cruza_min_", c1, '_vs_', c2),
+                   paste0("cruza_avg_", c1, '_vs_', c2)) )
+      },
+      n_cruzas
+    )
+    
+    tb_importancia = CanaritosImportancia( canaritos_ratio= PARAM$canaritos_ratio )
+    
+    nuevas_cols = intersect(colnames(dataset), nuevas_cols)
+    ProcesarRankings(nuevas_cols)
+    
+    nuevas_cols = intersect(colnames(dataset), nuevas_cols)
+    tb_importancia = ProcesarTendencias(nuevas_cols)
+    
+    nuevas_cols = intersect(colnames(dataset), nuevas_cols)
+    tb_importancia = ProcesarLags(nuevas_cols)
+  }
+  
+  return (tb_importancia)
+}
+
+TruncarVariables <- function(tb_importancia) {
+  if ( PARAM$truncar > 0 ) {
+    cat("Truncando variables a: ", PARAM$truncar, "\n")
+    cols_finales = union(tb_importancia[pos <= PARAM$truncar, Feature], PARAM$const$campos_fijos)
+    dataset <<- dataset[, ..cols_finales]
+    gc()
+    ReportarCampos(dataset)
+    cat("Variables truncadas\n")
+  }
+}
+
+#------------------------------------------------------------------------------
+
+SimularYAML <- function () {
+  return (
+    list(
+      "corregir" = TRUE,
+      "variablesmanuales" = TRUE,
+      "rankear" = TRUE,
+      "const" = list(
+        "campos_sort" = c("numero_de_cliente", "foto_mes"),
+        "campos_fijos" = c("numero_de_cliente", "foto_mes", "mes", "clase_ternaria"),
+        "clase" = "clase_ternaria"
+      ),
+      "tendenciaYmuchomas" = list(
+        "correr" = TRUE,
+        "ventanas" = c(3, 6, 12),
+        "tendencia" = TRUE,
+        "minimo" = TRUE,
+        "maximo" = TRUE,
+        "promedio" = TRUE,
+        "ratioavg" = TRUE,
+        "ratiomax" = TRUE
+      ),
+      "lags" = c(1,2,3),
+      "canaritos_ratio" = 0.2,
+      "cruzas" = 10,
+      "truncar" = 1000
+    )
+  )
+}
+
+#------------------------------------------------------------------------------
+
+#------------------------------------------------------------------------------
 #Aqui empieza el programa
 
-exp_iniciar( )
+# Params locales que simula YAML
+PARAM = SimularYAML()
 
 #cargo el dataset
-nom_arch  <- exp_nombre_archivo( PARAM$files$input$dentrada )
-dataset   <- fread( nom_arch )
+setwd("c:\\data_mining\\")
+dataset <- fread( "datasets\\paquete_premium_202011.csv" )
+
+setwd("c:\\data_mining\\debug\\")
 
 #ordeno el dataset por <numero_de_cliente, foto_mes> para poder hacer lags
 setorderv( dataset, PARAM$const$campos_sort )
@@ -594,93 +727,20 @@ if( PARAM$corregir )  Corregir( dataset )
 if( PARAM$variablesmanuales )  AgregarVariables( dataset )
 
 cols_a_procesar  <- copy( setdiff( colnames(dataset), PARAM$const$campos_fijos ) )
-
-if( PARAM$rankear ) {
-  setorder( dataset, foto_mes, numero_de_cliente )
-  Rankeador(dataset, cols_a_procesar)
-  setorderv( dataset, PARAM$const$campos_sort )
-}
+ProcesarRankings(cols_a_procesar)
 
 cols_a_procesar  <- copy( setdiff( colnames(dataset), PARAM$const$campos_fijos ) )
-
-if( PARAM$tendenciaYmuchomas$correr ) 
-{
-  p  <- PARAM$tendenciaYmuchomas
-
-  for (ventana in p$ventanas) {
-    TendenciaYmuchomas( cols= cols_a_procesar,
-                        ventana=   ventana,
-                        tendencia= p$tendencia,
-                        minimo=    p$minimo,
-                        maximo=    p$maximo,
-                        promedio=  p$promedio,
-                        ratioavg=  p$ratioavg,
-                        ratiomax=  p$ratiomax
-                      )
-    tb_importancia = CanaritosImportancia( canaritos_ratio= PARAM$canaritos_ratio )
-    cols_a_procesar = intersect(colnames(dataset), cols_a_procesar)
-  }
-}
+tb_importancia <- ProcesarTendencias(cols_a_procesar)
 
 cols_a_procesar  <- copy( setdiff( colnames(dataset), PARAM$const$campos_fijos ) )
+tb_importancia <- ProcesarLags(cols_a_procesar)
 
-for( lag in PARAM$lags )
-{
-  Lags( cols_a_procesar, lag, TRUE )   #calculo los lags de orden lag
-
-  tb_importancia = CanaritosImportancia( canaritos_ratio= PARAM$canaritos_ratio )
-  cols_a_procesar = intersect(colnames(dataset), cols_a_procesar)
-}
-
-if (PARAM$cruzas) {
-  CruzarVariablesImportantes(
-    dataset,
-    tb_importancia,
-    function(dataset, c1, c2) {
-      if (!(c1 %in% colnames(dataset)) || !(c2 %in% colnames(dataset)))
-        return(c())
-      
-      dataset[get(c2) > 0, paste0("cruza_ratio_", c1, '_vs_', c2) := (get(c1) / get(c2))]
-      return (paste0("cruza_ratio_", c1, '_vs_', c2))
-    },
-    PARAM$cruzas
-  )
-  
-  tb_importancia = CanaritosImportancia( canaritos_ratio= PARAM$canaritos_ratio )
-}
+cols_a_procesar  <- copy( setdiff( colnames(dataset), PARAM$const$campos_fijos ) )
+tb_importancia <- ProcesarCruzas(dataset, tb_importancia, PARAM$cruzas)
 
 # Trunco las X variables más importantes para achicar el dataset
-if ( PARAM$truncar > 0 ) {
-  cat("Truncando variables a: ", PARAM$truncar, "\n")
-  cols_finales = union(tb_importancia[pos <= PARAM$truncar, Feature], PARAM$const$campos_fijos)
-  dataset = dataset[, ..cols_finales]
-  gc()
-  ReportarCampos(dataset)
-  cat("Variables truncadas\n")
-}
+TruncarVariables(tb_importancia)
 
 #dejo la clase como ultimo campo
 nuevo_orden  <- c( setdiff( colnames( dataset ) , PARAM$const$clase ) , PARAM$const$clase )
 setcolorder( dataset, nuevo_orden )
-
-
-#Grabo el dataset
-fwrite( dataset,
-        paste0( PARAM$files$output ),
-        logical01= TRUE,
-        sep= "," )
-
-
-
-# grabo catalogo   ------------------------------------------------------------
-# es lo ultimo que hago, indica que llegue a generar la salida
-#no todos los archivos generados pasan al catalogo
-
-exp_catalog_add( action= "FE",
-                 type=   "file",
-                 key=    "dataset",
-                 value = PARAM$files$output )
-
-#finalizo el experimento
-#HouseKeeping
-exp_finalizar( )

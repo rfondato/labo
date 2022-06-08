@@ -576,6 +576,106 @@ CruzarVariablesImportantes <- function(dataset, tb_importancia, funcion_cruza, n
 }
 
 #------------------------------------------------------------------------------
+
+ProcesarRankings <- function(cols_a_procesar) {
+  if( PARAM$rankear ) {
+    setorder( dataset, foto_mes, numero_de_cliente )
+    Rankeador( dataset, cols_a_procesar)
+    setorderv( dataset, PARAM$const$campos_sort )
+  }
+}
+
+ProcesarTendencias <- function(cols_a_procesar) {
+  
+  tb_importancia = NULL
+  
+  if( PARAM$tendenciaYmuchomas$correr ) 
+  {
+    p  <- PARAM$tendenciaYmuchomas
+    
+    for (ventana in p$ventanas) {
+      TendenciaYmuchomas( cols= cols_a_procesar,
+                          ventana=   ventana,
+                          tendencia= p$tendencia,
+                          minimo=    p$minimo,
+                          maximo=    p$maximo,
+                          promedio=  p$promedio,
+                          ratioavg=  p$ratioavg,
+                          ratiomax=  p$ratiomax
+      )
+      tb_importancia = CanaritosImportancia( canaritos_ratio= PARAM$canaritos_ratio )
+      cols_a_procesar = intersect(colnames(dataset), cols_a_procesar)
+    }
+    
+  }
+  
+  return( tb_importancia )
+}
+
+ProcesarLags <- function(cols_a_procesar) {
+  tb_importancia = NULL
+  
+  for( lag in PARAM$lags )
+  {
+    Lags( cols_a_procesar, lag, TRUE )   #calculo los lags de orden lag
+    
+    tb_importancia = CanaritosImportancia( canaritos_ratio= PARAM$canaritos_ratio )
+    cols_a_procesar = intersect(colnames(dataset), cols_a_procesar)
+  }
+  
+  return(tb_importancia)
+}
+
+ProcesarCruzas <- function(dataset, tb_importancia, n_cruzas = 100) {
+  
+  if (n_cruzas > 0) {
+    nuevas_cols = CruzarVariablesImportantes(
+      dataset,
+      tb_importancia,
+      function(dataset, c1, c2) {
+        if (!(c1 %in% colnames(dataset)) || !(c2 %in% colnames(dataset)))
+          return(c())
+        
+        dataset[get(c2) > 0, paste0("cruza_ratio_", c1, '_vs_', c2) := (get(c1) / get(c2))]
+        dataset[, paste0("cruza_max_", c1, '_vs_', c2) := pmax( get(c1),  get(c2) )]
+        dataset[, paste0("cruza_min_", c1, '_vs_', c2) := pmin( get(c1),  get(c2) )]
+        dataset[, paste0("cruza_avg_", c1, '_vs_', c2) := ((get(c1) + get(c2)) / 2)]
+        
+        return ( c(paste0("cruza_ratio_", c1, '_vs_', c2), 
+                   paste0("cruza_max_", c1, '_vs_', c2),
+                   paste0("cruza_min_", c1, '_vs_', c2),
+                   paste0("cruza_avg_", c1, '_vs_', c2)) )
+      },
+      n_cruzas
+    )
+    
+    tb_importancia = CanaritosImportancia( canaritos_ratio= PARAM$canaritos_ratio )
+    
+    nuevas_cols = intersect(colnames(dataset), nuevas_cols)
+    ProcesarRankings(nuevas_cols)
+    
+    nuevas_cols = intersect(colnames(dataset), nuevas_cols)
+    tb_importancia = ProcesarTendencias(nuevas_cols)
+    
+    nuevas_cols = intersect(colnames(dataset), nuevas_cols)
+    tb_importancia = ProcesarLags(nuevas_cols)
+  }
+  
+  return (tb_importancia)
+}
+
+TruncarVariables <- function(tb_importancia) {
+  if ( PARAM$truncar > 0 ) {
+    cat("Truncando variables a: ", PARAM$truncar, "\n")
+    cols_finales = union(tb_importancia[pos <= PARAM$truncar, Feature], PARAM$const$campos_fijos)
+    dataset <<- dataset[, ..cols_finales]
+    gc()
+    ReportarCampos(dataset)
+    cat("Variables truncadas\n")
+  }
+}
+
+#------------------------------------------------------------------------------
 #Aqui empieza el programa
 
 exp_iniciar( )
@@ -594,70 +694,19 @@ if( PARAM$corregir )  Corregir( dataset )
 if( PARAM$variablesmanuales )  AgregarVariables( dataset )
 
 cols_a_procesar  <- copy( setdiff( colnames(dataset), PARAM$const$campos_fijos ) )
-
-if( PARAM$rankear ) {
-  setorder( dataset, foto_mes, numero_de_cliente )
-  Rankeador(dataset, cols_a_procesar)
-  setorderv( dataset, PARAM$const$campos_sort )
-}
+ProcesarRankings(cols_a_procesar)
 
 cols_a_procesar  <- copy( setdiff( colnames(dataset), PARAM$const$campos_fijos ) )
-
-if( PARAM$tendenciaYmuchomas$correr ) 
-{
-  p  <- PARAM$tendenciaYmuchomas
-
-  for (ventana in p$ventanas) {
-    TendenciaYmuchomas( cols= cols_a_procesar,
-                        ventana=   ventana,
-                        tendencia= p$tendencia,
-                        minimo=    p$minimo,
-                        maximo=    p$maximo,
-                        promedio=  p$promedio,
-                        ratioavg=  p$ratioavg,
-                        ratiomax=  p$ratiomax
-                      )
-    tb_importancia = CanaritosImportancia( canaritos_ratio= PARAM$canaritos_ratio )
-    cols_a_procesar = intersect(colnames(dataset), cols_a_procesar)
-  }
-}
+tb_importancia <- ProcesarTendencias(cols_a_procesar)
 
 cols_a_procesar  <- copy( setdiff( colnames(dataset), PARAM$const$campos_fijos ) )
+tb_importancia <- ProcesarLags(cols_a_procesar)
 
-for( lag in PARAM$lags )
-{
-  Lags( cols_a_procesar, lag, TRUE )   #calculo los lags de orden lag
-
-  tb_importancia = CanaritosImportancia( canaritos_ratio= PARAM$canaritos_ratio )
-  cols_a_procesar = intersect(colnames(dataset), cols_a_procesar)
-}
-
-if (PARAM$cruzas) {
-  CruzarVariablesImportantes(
-    dataset,
-    tb_importancia,
-    function(dataset, c1, c2) {
-      if (!(c1 %in% colnames(dataset)) || !(c2 %in% colnames(dataset)))
-        return(c())
-      
-      dataset[get(c2) > 0, paste0("cruza_ratio_", c1, '_vs_', c2) := (get(c1) / get(c2))]
-      return (paste0("cruza_ratio_", c1, '_vs_', c2))
-    },
-    PARAM$cruzas
-  )
-  
-  tb_importancia = CanaritosImportancia( canaritos_ratio= PARAM$canaritos_ratio )
-}
+cols_a_procesar  <- copy( setdiff( colnames(dataset), PARAM$const$campos_fijos ) )
+tb_importancia <- ProcesarCruzas(dataset, tb_importancia, PARAM$cruzas)
 
 # Trunco las X variables más importantes para achicar el dataset
-if ( PARAM$truncar > 0 ) {
-  cat("Truncando variables a: ", PARAM$truncar, "\n")
-  cols_finales = union(tb_importancia[pos <= PARAM$truncar, Feature], PARAM$const$campos_fijos)
-  dataset = dataset[, ..cols_finales]
-  gc()
-  ReportarCampos(dataset)
-  cat("Variables truncadas\n")
-}
+TruncarVariables(tb_importancia)
 
 #dejo la clase como ultimo campo
 nuevo_orden  <- c( setdiff( colnames( dataset ) , PARAM$const$clase ) , PARAM$const$clase )
