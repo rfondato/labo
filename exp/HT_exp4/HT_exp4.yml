@@ -41,7 +41,7 @@ param:
 
     pos_bagging_fraction: 1.0
     neg_bagging_fraction: [ 0.1, 0.7 ]
-    bagging_freq : [1, 100]
+    bagging_freq : [1, 100, "integer"]
 
     max_depth:  -1                   # [ 6  ,  12 ]  #pero es preferible dejarlo en -1 como esta
     max_bin:     31                  #dejarlo fijo en 31, los scripts no estan preparados para que esto cambie
