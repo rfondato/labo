@@ -17,14 +17,14 @@ param:
   rankear: TRUE # nuevas columnas con el ranking de las anteriores
 
   tendenciaYmuchomas: # Tendencias, avgs, max, mins, etc.
-    correr: TRUE
+    correr: FALSE
     ventanas: [6] # Solo voy a probar con 6 por ahora
-    tendencia: TRUE
+    tendencia: FALSE
     minimo:    FALSE
     maximo:    FALSE
     promedio:  FALSE
-    ratioavg:  TRUE
-    ratiomax:  TRUE
+    ratioavg:  FALSE
+    ratiomax:  FALSE
 
   #lags y sus deltas
   lags: [ 1, 2 ]

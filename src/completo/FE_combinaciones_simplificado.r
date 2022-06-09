@@ -649,9 +649,9 @@ ProcesarCruzas <- function() {
           return(c())
         
         dataset[get(c2) > 0, paste0("cruza_ratio_", c1, '_vs_', c2) := (get(c1) / get(c2))]
-        dataset[, paste0("cruza_max_", c1, '_vs_', c2) := pmax( get(c1),  get(c2) )]
-        dataset[, paste0("cruza_min_", c1, '_vs_', c2) := pmin( get(c1),  get(c2) )]
-        dataset[, paste0("cruza_avg_", c1, '_vs_', c2) := ((get(c1) + get(c2)) / 2)]
+        dataset[, paste0("cruza_max_", c1, '_vs_', c2) := pmax( get(c1),  get(c2), na.rm = T )]
+        dataset[, paste0("cruza_min_", c1, '_vs_', c2) := pmin( get(c1),  get(c2), na.rm = T )]
+        dataset[, paste0("cruza_avg_", c1, '_vs_', c2) := rowSums( cbind( get(c1),  get(c2) ) , na.rm=TRUE ) / 2]
         
         return ( c(paste0("cruza_ratio_", c1, '_vs_', c2), 
                    paste0("cruza_max_", c1, '_vs_', c2),
@@ -661,7 +661,7 @@ ProcesarCruzas <- function() {
       PARAM$cruzas
     )
     
-    cat("DEBUG: Calculando importancia luego de cruzas")
+    cat("DEBUG: Calculando importancia luego de cruzas\n")
     CalcularImportancia()
   }
 }
