@@ -454,10 +454,8 @@ CalcularImportancia <- function() {
   dataset[ , clase01:= ifelse( clase_ternaria=="CONTINUA", 0, 1 ) ]
   campos_buenos  <- setdiff( colnames(dataset), c("clase_ternaria","clase01" ) )
   
-  dataset[ , entrenamiento := foto_mes>= 202001 &  foto_mes<= 202010 &  foto_mes!=202006 ]
-  
-  cat("Filas que voy a usar para entrenar: ", dataset[entrenamiento==TRUE, .N], "\n")
-  cat("Filas que voy a usar para validar: ", dataset[foto_mes==202011, .N], "\n")
+  azar  <- runif( nrow(dataset) )
+  dataset[ , entrenamiento := foto_mes>= 202001 &  foto_mes<= 202010 &  foto_mes!=202006 & ( clase01==1 | azar < 0.50 ) ]
   
   dtrain  <- lgb.Dataset( data=    data.matrix(  dataset[ entrenamiento==TRUE, campos_buenos, with=FALSE]),
                           label=   dataset[ entrenamiento==TRUE, clase01],
@@ -488,8 +486,8 @@ CalcularImportancia <- function() {
                  force_row_wise= TRUE,    #para que los alumnos no se atemoricen con tantos warning
                  learning_rate= 0.065, 
                  feature_fraction= 1.0,   #lo seteo en 1 para que las primeras variables del dataset no se vean opacadas
-                 min_data_in_leaf= 1500,
-                 num_leaves= 100,
+                 min_data_in_leaf= 260,
+                 num_leaves= 60,
                  # num_threads= 8,
                  early_stopping_rounds= 200 )
   
@@ -501,6 +499,14 @@ CalcularImportancia <- function() {
   
   tb_importancia  <- lgb.importance( model= modelo )
   tb_importancia[  , pos := .I ]
+  
+  # FIX IMPORTANTÍSIMO!!! REMOVER clase01 DESPUES DE CALCULAR IMPORTANCIA!!!
+  # De otra manera si se calculan lags, deltas, trends sobre éste feature, 
+  # clase01_lag1, clase01_trend, etc. no serán removidos antes de entrenar como "campos malos"
+  # la próxima vez, y desvirtúa todo el entrenamiento (se usan exclusivamente esas features que explican toda la ganancia)
+  dataset[ , clase01 := NULL ]
+  dataset[ , entrenamiento := NULL ]
+  
   
   fwrite( tb_importancia, 
           file= paste0( "impo_", GVEZ ,".txt"),
