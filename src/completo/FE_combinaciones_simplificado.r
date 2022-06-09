@@ -448,6 +448,9 @@ GVEZ <- 1
 
 CalcularImportancia <- function() {
   
+  cat("Calculando Importancia por ", GVEZ, " vez\n")
+  ReportarCampos(dataset)
+  
   dataset[ , clase01:= ifelse( clase_ternaria=="CONTINUA", 0, 1 ) ]
   campos_buenos  <- setdiff( colnames(dataset), c("clase_ternaria","clase01" ) )
   
@@ -502,6 +505,9 @@ CalcularImportancia <- function() {
           sep= "\t" )
   
   GVEZ  <<- GVEZ + 1
+  
+  ReportarCampos(dataset)
+  cat("Cantidad de filas en la tabla de importancia: ", nrow(tb_importancia), "\n")
   
   return (tb_importancia)
 }
