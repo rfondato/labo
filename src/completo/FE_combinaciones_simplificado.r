@@ -454,8 +454,10 @@ CalcularImportancia <- function() {
   dataset[ , clase01:= ifelse( clase_ternaria=="CONTINUA", 0, 1 ) ]
   campos_buenos  <- setdiff( colnames(dataset), c("clase_ternaria","clase01" ) )
   
-  azar  <- runif( nrow(dataset) )
-  dataset[ , entrenamiento := foto_mes>= 202001 &  foto_mes<= 202010 &  foto_mes!=202006 & ( clase01==1 | azar < 0.10 ) ]
+  dataset[ , entrenamiento := foto_mes>= 202001 &  foto_mes<= 202010 &  foto_mes!=202006 ]
+  
+  cat("Filas que voy a usar para entrenar: ", dataset[entrenamiento==TRUE, .N], "\n")
+  cat("Filas que voy a usar para validar: ", dataset[foto_mes==202011, .N], "\n")
   
   dtrain  <- lgb.Dataset( data=    data.matrix(  dataset[ entrenamiento==TRUE, campos_buenos, with=FALSE]),
                           label=   dataset[ entrenamiento==TRUE, clase01],
@@ -486,8 +488,8 @@ CalcularImportancia <- function() {
                  force_row_wise= TRUE,    #para que los alumnos no se atemoricen con tantos warning
                  learning_rate= 0.065, 
                  feature_fraction= 1.0,   #lo seteo en 1 para que las primeras variables del dataset no se vean opacadas
-                 min_data_in_leaf= 260,
-                 num_leaves= 60,
+                 min_data_in_leaf= 1500,
+                 num_leaves= 100,
                  # num_threads= 8,
                  early_stopping_rounds= 200 )
   
@@ -524,66 +526,13 @@ CanaritosImportancia  <- function( canaritos_ratio=0.2 )
   gc()
   cat("Aplicando canaritos con ratio: ", canaritos_ratio, "\n")
   ReportarCampos( dataset )
-  dataset[ , clase01:= ifelse( clase_ternaria=="CONTINUA", 0, 1 ) ]
-  
+
   for( i  in 1:(ncol(dataset)*canaritos_ratio))  dataset[ , paste0("canarito", i ) :=  runif( nrow(dataset))]
-  
-  campos_buenos  <- setdiff( colnames(dataset), c("clase_ternaria","clase01" ) )
-  
-  azar  <- runif( nrow(dataset) )
-  dataset[ , entrenamiento := foto_mes>= 202001 &  foto_mes<= 202010 &  foto_mes!=202006 & ( clase01==1 | azar < 0.10 ) ]
-  
-  dtrain  <- lgb.Dataset( data=    data.matrix(  dataset[ entrenamiento==TRUE, campos_buenos, with=FALSE]),
-                          label=   dataset[ entrenamiento==TRUE, clase01],
-                          weight=  dataset[ entrenamiento==TRUE, ifelse(clase_ternaria=="BAJA+2", 1.0000001, 1.0)],
-                          free_raw_data= FALSE
-  )
-  
-  dvalid  <- lgb.Dataset( data=    data.matrix(  dataset[ foto_mes==202011, campos_buenos, with=FALSE]),
-                          label=   dataset[ foto_mes==202011, clase01],
-                          weight=  dataset[ foto_mes==202011, ifelse(clase_ternaria=="BAJA+2", 1.0000001, 1.0)],
-                          free_raw_data= FALSE
-  )
-  
-  
-  param <- list( objective= "binary",
-                 metric= "custom",
-                 first_metric_only= TRUE,
-                 boost_from_average= TRUE,
-                 feature_pre_filter= FALSE,
-                 verbosity= -100,
-                 seed= 999983,
-                 max_depth=  -1,         # -1 significa no limitar,  por ahora lo dejo fijo
-                 min_gain_to_split= 0.0, #por ahora, lo dejo fijo
-                 lambda_l1= 0.0,         #por ahora, lo dejo fijo
-                 lambda_l2= 0.0,         #por ahora, lo dejo fijo
-                 max_bin= 31,            #por ahora, lo dejo fijo
-                 num_iterations= 9999,   #un numero muy grande, lo limita early_stopping_rounds
-                 force_row_wise= TRUE,    #para que los alumnos no se atemoricen con tantos warning
-                 learning_rate= 0.065, 
-                 feature_fraction= 1.0,   #lo seteo en 1 para que las primeras variables del dataset no se vean opacadas
-                 min_data_in_leaf= 260,
-                 num_leaves= 60,
-                 # num_threads= 8,
-                 early_stopping_rounds= 200 )
-  
-  modelo  <- lgb.train( data= dtrain,
-                        valids= list( valid= dvalid ),
-                        eval= fganancia_lgbm_meseta,
-                        param= param,
-                        verbose= -100 )
-  
-  tb_importancia  <- lgb.importance( model= modelo )
-  tb_importancia[  , pos := .I ]
-  
-  fwrite( tb_importancia, 
-          file= paste0( "impo_", GVEZ ,".txt"),
-          sep= "\t" )
-  
-  GVEZ  <<- GVEZ + 1
-  
+
+  tb_importancia = CalcularImportancia()
+
   umbral  <- tb_importancia[ Feature %like% "canarito", median(pos) + sd(pos) ]  #Atencion corto en la mediana !!
-  
+
   col_utiles  <- tb_importancia[ pos < umbral & !( Feature %like% "canarito"),  Feature ]
   col_utiles  <-  unique( c( col_utiles,  c("numero_de_cliente","foto_mes","clase_ternaria","mes") ) )
   col_inutiles  <- setdiff( colnames(dataset), col_utiles )
@@ -594,7 +543,11 @@ CanaritosImportancia  <- function( canaritos_ratio=0.2 )
   
   cat("Finalizado canaritos con ratio: ", canaritos_ratio, "\n")
   cat("Eliminadas: ", length(col_inutiles[which(!(col_inutiles %like% "canarito"))]), " columnas menos importantes\n")
-
+  
+  tb_importancia = tb_importancia[ Feature %in% col_utiles ]
+  tb_importancia[  , pos := .I ]
+  
+  return (tb_importancia)
 }
 
 #------------------------------------------------------------------------------
@@ -668,8 +621,7 @@ ProcesarTendencias <- function(cols_a_procesar) {
                           ratioavg=  p$ratioavg,
                           ratiomax=  p$ratiomax
       )
-      #CanaritosImportancia( canaritos_ratio= PARAM$canaritos_ratio )
-      TruncarVariables()
+      CanaritosImportancia( canaritos_ratio= PARAM$canaritos_ratio )
       cols_a_procesar = intersect(colnames(dataset), cols_a_procesar)
     }
     
@@ -681,8 +633,7 @@ ProcesarLags <- function(cols_a_procesar) {
   {
     Lags( cols_a_procesar, lag, TRUE )   #calculo los lags de orden lag
     
-    #CanaritosImportancia( canaritos_ratio= PARAM$canaritos_ratio )
-    TruncarVariables()
+    CanaritosImportancia( canaritos_ratio= PARAM$canaritos_ratio )
     cols_a_procesar = intersect(colnames(dataset), cols_a_procesar)
   }
 }
@@ -712,8 +663,8 @@ ProcesarCruzas <- function() {
       PARAM$cruzas
     )
     
-    #cat("DEBUG: Calculando importancia luego de cruzas\n")
-    #CalcularImportancia()
+    cat("DEBUG: Calculando importancia luego de cruzas\n")
+    CalcularImportancia()
   }
 }
 
