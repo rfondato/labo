@@ -660,6 +660,9 @@ ProcesarCruzas <- function() {
       },
       PARAM$cruzas
     )
+    
+    cat("DEBUG: Calculando importancia luego de cruzas")
+    CalcularImportancia()
   }
 }
 
