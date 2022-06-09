@@ -668,7 +668,8 @@ ProcesarTendencias <- function(cols_a_procesar) {
                           ratioavg=  p$ratioavg,
                           ratiomax=  p$ratiomax
       )
-      CanaritosImportancia( canaritos_ratio= PARAM$canaritos_ratio )
+      #CanaritosImportancia( canaritos_ratio= PARAM$canaritos_ratio )
+      TruncarVariables()
       cols_a_procesar = intersect(colnames(dataset), cols_a_procesar)
     }
     
@@ -680,7 +681,8 @@ ProcesarLags <- function(cols_a_procesar) {
   {
     Lags( cols_a_procesar, lag, TRUE )   #calculo los lags de orden lag
     
-    CanaritosImportancia( canaritos_ratio= PARAM$canaritos_ratio )
+    #CanaritosImportancia( canaritos_ratio= PARAM$canaritos_ratio )
+    TruncarVariables()
     cols_a_procesar = intersect(colnames(dataset), cols_a_procesar)
   }
 }
@@ -710,8 +712,8 @@ ProcesarCruzas <- function() {
       PARAM$cruzas
     )
     
-    cat("DEBUG: Calculando importancia luego de cruzas\n")
-    CalcularImportancia()
+    #cat("DEBUG: Calculando importancia luego de cruzas\n")
+    #CalcularImportancia()
   }
 }
 
