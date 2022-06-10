@@ -1,0 +1,53 @@
+googlecloud:
+  RAM:   256
+  vCPU:    8
+  disk:  256
+
+
+experiment:
+  script: "src/completo/FE_combinaciones_simplificado.r"
+  restart: FALSE
+  name: "exp"
+  requires: [ "DT0001" ]
+
+
+param:
+  corregir: TRUE    # se se corrige los campos/foto_mes  MALOS
+  variablesmanuales: TRUE # variables artesanales
+  rankear: TRUE # nuevas columnas con el ranking de las anteriores
+
+  tendenciaYmuchomas: # Tendencias, avgs, max, mins, etc.
+    correr: FALSE
+    ventanas: [6] # Solo voy a probar con 6 por ahora
+    tendencia: FALSE
+    minimo:    FALSE
+    maximo:    FALSE
+    promedio:  FALSE
+    ratioavg:  FALSE
+    ratiomax:  FALSE
+
+  #lags y sus deltas
+  lags: [ 1, 2, 6, 12]
+  
+  canaritos_ratio: 0.2 # Ratio de canaritos a aplicar entre pasos
+  cruzas: 10 # Cruzar las top X variables
+  truncar: 1000 # Truncar el dataset a las X variables más importantes
+  
+  files:
+    input:
+      dentrada: [ "dataset" ]
+    output:
+      dsalida: "paquete_premium_ext.csv.gz"
+
+  const:
+    clase: "clase_ternaria"
+    futuro: [ 202101 ]
+    campos_sort:  [ "numero_de_cliente", "foto_mes" ]   #por donde hago el sort inicial
+    campos_fijos: [ "numero_de_cliente", "foto_mes", "mes", "clase_ternaria" ]
+    modelo:
+
+
+environment:
+  repo_dir: "~/labo/"
+  exp_dir:  "~/buckets/b1/exp/"
+  catalog:  "catalogo.txt"
