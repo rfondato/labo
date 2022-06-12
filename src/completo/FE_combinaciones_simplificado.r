@@ -675,7 +675,7 @@ ProcesarCruzas <- function() {
 }
 
 TruncarVariables <- function() {
-  if ( (PARAM$truncar > 0) && (nrow(dataset) > PARAM$truncar ) ) {
+  if ( (PARAM$truncar > 0) && (ncol(dataset) > PARAM$truncar ) ) {
     cat("Truncando variables a: ", PARAM$truncar, "\n")
     tb_importancia = CalcularImportancia()
     cols_finales = union(tb_importancia[pos <= PARAM$truncar, Feature], PARAM$const$campos_fijos)
