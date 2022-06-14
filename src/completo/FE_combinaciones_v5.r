@@ -527,7 +527,7 @@ CalcularImportancia <- function() {
 #se llama varias veces, luego de agregar muchas variables nuevas, para ir reduciendo la cantidad de variables
 # y así hacer lugar a nuevas variables importantes
 
-CanaritosImportancia  <- function( canaritos_ratio=0.2 )
+CanaritosImportancia  <- function( canaritos_ratio=0.2, limite = 2000 )
 {
   gc()
   cat("Aplicando canaritos con ratio: ", canaritos_ratio, "\n")
@@ -539,7 +539,7 @@ CanaritosImportancia  <- function( canaritos_ratio=0.2 )
 
   umbral  <- tb_importancia[ Feature %like% "canarito", median(pos) + sd(pos) ]  #Atencion corto en la mediana !!
 
-  col_utiles  <- tb_importancia[ pos < umbral & !( Feature %like% "canarito"),  Feature ]
+  col_utiles  <- tb_importancia[ pos < min(umbral, limite) & !( Feature %like% "canarito"),  Feature ]
   col_utiles  <-  unique( c( col_utiles,  c("numero_de_cliente","foto_mes","clase_ternaria","mes") ) )
   col_inutiles  <- setdiff( colnames(dataset), col_utiles )
 
@@ -627,7 +627,7 @@ ProcesarTendencias <- function(cols_a_procesar) {
                           ratioavg=  p$ratioavg,
                           ratiomax=  p$ratiomax
       )
-      CanaritosImportancia( canaritos_ratio= PARAM$canaritos_ratio )
+      CanaritosImportancia( canaritos_ratio= PARAM$canaritos_ratio, limite= PARAM$canaritos_limite )
       cols_a_procesar = intersect(colnames(dataset), cols_a_procesar)
     }
     
@@ -639,7 +639,7 @@ ProcesarLags <- function(cols_a_procesar) {
   {
     Lags( cols_a_procesar, lag, TRUE )   #calculo los lags de orden lag
     
-    CanaritosImportancia( canaritos_ratio= PARAM$canaritos_ratio )
+    CanaritosImportancia( canaritos_ratio= PARAM$canaritos_ratio, limite= PARAM$canaritos_limite )
     cols_a_procesar = intersect(colnames(dataset), cols_a_procesar)
   }
 }
@@ -669,7 +669,7 @@ ProcesarCruzas <- function() {
       PARAM$cruzas
     )
     
-    CanaritosImportancia( canaritos_ratio= PARAM$canaritos_ratio )
+    CanaritosImportancia( canaritos_ratio= PARAM$canaritos_ratio, limite= PARAM$canaritos_limite )
   }
 }
 
@@ -686,6 +686,7 @@ TruncarVariables <- function() {
 }
 
 ProcesoCompleto <- function(n_vuelta) {
+  gc() # Un buen GC no se le niega a nadie
   
   cat("Iniciando ", n_vuelta, " vuelta del proceso completo\n")
   
