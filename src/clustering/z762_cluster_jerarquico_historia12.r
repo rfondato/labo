@@ -70,8 +70,8 @@ hclust.rf  <- hclust( as.dist ( 1.0 - modelo$proximity),  #distancia = 1.0 - pro
 
 #primero, creo la carpeta donde van los resultados
 dir.create( "./exp/", showWarnings= FALSE )
-dir.create( "./exp/ST7620", showWarnings= FALSE )
-setwd( "~/buckets/b1/exp/ST7620" )
+dir.create( "./exp/Clustering", showWarnings= FALSE )
+setwd( "~/buckets/b1/exp/Clustering" )
 
 
 #imprimo un pdf con la forma del cluster jerarquico
@@ -80,11 +80,11 @@ plot( hclust.rf )
 dev.off()
 
 
-#genero 7 clusters
+#genero 5 clusters
 h <- 20
 distintos <- 0
 
-while(  h>0  &  !( distintos >=6 & distintos <=7 ) )
+while(  h>0  &  !( distintos >=4 & distintos <=5 ) )
 {
   h <- h - 1 
   rf.cluster  <- cutree( hclust.rf, h)
