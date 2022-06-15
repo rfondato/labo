@@ -738,7 +738,7 @@ IniciarOResumir <- function() {
     filename <- paste0(PARAM$files$output, "_", i, ".csv.gz")
     if (file.exists(filename)) {
       found <- T
-      dataset <- fread( filename ) # Si encuentro el archivo lo cargo
+      dataset <<- fread( filename ) # Si encuentro el archivo lo cargo
       currentRound <- i
     }
     i <- i - 1
@@ -749,7 +749,7 @@ IniciarOResumir <- function() {
   if (currentRound == 1) {
     #cargo el dataset
     nom_arch  <- exp_nombre_archivo( PARAM$files$input$dentrada )
-    dataset   <- fread( nom_arch ) 
+    dataset   <<- fread( nom_arch ) 
     
     #ordeno el dataset por <numero_de_cliente, foto_mes> para poder hacer lags
     setorderv( dataset, PARAM$const$campos_sort )
