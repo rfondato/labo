@@ -39,7 +39,7 @@ param:
     input:
       dentrada: [ "dataset" ]
     output:
-      dsalida: "paquete_premium_ext.csv.gz"
+      dsalida: "paquete_premium_ext"
 
   const:
     clase: "clase_ternaria"

@@ -637,7 +637,7 @@ ProcesarTendencias <- function(cols_a_procesar) {
 ProcesarLags <- function(cols_a_procesar) {
   for( lag in PARAM$lags )
   {
-    Lags( cols_a_procesar, lag, TRUE )   #calculo los lags de orden lag
+    Lags( cols_a_procesar, lag, TRUE ) # Calculo los lags de orden "lag"
     
     CanaritosImportancia( canaritos_ratio= PARAM$canaritos_ratio, limite= PARAM$canaritos_limite )
     cols_a_procesar = intersect(colnames(dataset), cols_a_procesar)
@@ -676,10 +676,15 @@ ProcesarCruzas <- function() {
 TruncarVariables <- function() {
   if ( (PARAM$truncar > 0) && (ncol(dataset) > PARAM$truncar ) ) {
     cat("Truncando variables a: ", PARAM$truncar, "\n")
+    
     tb_importancia = CalcularImportancia()
+    
     cols_finales = union(tb_importancia[pos <= PARAM$truncar, Feature], PARAM$const$campos_fijos)
-    dataset <<- dataset[, ..cols_finales]
-    gc()
+    
+    col_inutiles <- setdiff( colnames(dataset), cols_finales )
+    
+    dataset[  ,  (col_inutiles) := NULL ]
+    
     ReportarCampos(dataset)
     cat("Variables truncadas\n")
   }
@@ -703,8 +708,58 @@ ProcesoCompleto <- function(n_vuelta) {
   
   TruncarVariables()
   
-  cat("Finalizada ", n_vuelta, " vuelta del proceso completo\n")
+  cat("Finalizada ", n_vuelta, " de procesamiento del dataset. Grabando dataset intermedio\n")
   
+  #dejo la clase como ultimo campo
+  nuevo_orden  <- c( setdiff( colnames( dataset ) , PARAM$const$clase ) , PARAM$const$clase )
+  setcolorder( dataset, nuevo_orden )
+  
+  output = paste0(PARAM$files$output, "_", n_vuelta, ".csv.gz")
+  
+  #Grabo el dataset
+  fwrite( dataset,
+          output,
+          logical01= TRUE,
+          sep= "," )
+  
+  cat("Dataset grabado con éxito en el siguiente archivo: ", output ,"\n")
+  
+  return (output)
+}
+
+IniciarOResumir <- function() {
+  
+  currentRound <- 1
+  
+  # Chequeo si tengo que reiniciar desde una vuelta anterior
+  i <- PARAM$rondas
+  found <- F
+  while (i > 1 & !found) {
+    filename <- paste0(PARAM$files$output, "_", i, ".csv.gz")
+    if (file.exists(filename)) {
+      found <- T
+      dataset <- fread( filename ) # Si encuentro el archivo lo cargo
+      currentRound <- i
+    }
+    i <- i - 1
+  }
+  
+  # Si la ronda actual es la primera, leo el dataset desde el experimento anterior
+  # Y realizo los pasos de ordenar, corregir, agregar variables.
+  if (currentRound == 1) {
+    #cargo el dataset
+    nom_arch  <- exp_nombre_archivo( PARAM$files$input$dentrada )
+    dataset   <- fread( nom_arch ) 
+    
+    #ordeno el dataset por <numero_de_cliente, foto_mes> para poder hacer lags
+    setorderv( dataset, PARAM$const$campos_sort )
+    
+    AgregarMes( dataset )  #agrego el mes del año
+    
+    if( PARAM$corregir )  Corregir( dataset )
+    
+    if( PARAM$variablesmanuales )  AgregarVariables( dataset )  
+  }
 }
 
 #------------------------------------------------------------------------------
@@ -712,33 +767,11 @@ ProcesoCompleto <- function(n_vuelta) {
 
 exp_iniciar( )
 
-#cargo el dataset
-nom_arch  <- exp_nombre_archivo( PARAM$files$input$dentrada )
-dataset   <- fread( nom_arch )
+IniciarOResumir()
 
-#ordeno el dataset por <numero_de_cliente, foto_mes> para poder hacer lags
-setorderv( dataset, PARAM$const$campos_sort )
+output_file = NULL
 
-AgregarMes( dataset )  #agrego el mes del año
-
-if( PARAM$corregir )  Corregir( dataset )
-
-if( PARAM$variablesmanuales )  AgregarVariables( dataset )
-
-if ( PARAM$rondas > 0 ) {
-  for (i in 1:PARAM$rondas) ProcesoCompleto(i)
-}
-
-#dejo la clase como ultimo campo
-nuevo_orden  <- c( setdiff( colnames( dataset ) , PARAM$const$clase ) , PARAM$const$clase )
-setcolorder( dataset, nuevo_orden )
-
-#Grabo el dataset
-fwrite( dataset,
-        paste0( PARAM$files$output ),
-        logical01= TRUE,
-        sep= "," )
-
+for (i in 1:PARAM$rondas) output_file = ProcesoCompleto(i)
 
 # grabo catalogo   ------------------------------------------------------------
 # es lo ultimo que hago, indica que llegue a generar la salida
@@ -747,8 +780,7 @@ fwrite( dataset,
 exp_catalog_add( action= "FE",
                  type=   "file",
                  key=    "dataset",
-                 value = PARAM$files$output )
+                 value = output_file )
 
 #finalizo el experimento
-#HouseKeeping
 exp_finalizar( )
