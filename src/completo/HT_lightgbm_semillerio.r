@@ -65,14 +65,14 @@ particionar  <- function( data,  division, agrupa="",  campo="fold", start=1, se
 #------------------------------------------------------------------------------
 
 vprob_optima  <- c()
+venvios_optimos <- c()
 
 fganancia_lgbm_meseta  <- function( probs, datos) 
 {
   vlabels  <- get_field(datos, "label")
-  vpesos   <- get_field(datos, "weight")
 
   tbl  <- as.data.table( list( "prob"= probs, 
-                               "gan" = ifelse( vlabels==1 & vpesos > 1 , PARAM$const$POS_ganancia, PARAM$const$NEG_ganancia  ) ) )
+                               "gan" = ifelse( vlabels==1 , PARAM$const$POS_ganancia, PARAM$const$NEG_ganancia  ) ) )
 
   setorder( tbl, -prob )
   tbl[ , posicion := .I ]
@@ -82,12 +82,32 @@ fganancia_lgbm_meseta  <- function( probs, datos)
 
   pos  <- which.max(  tbl[ , gan_acum ] ) 
   vprob_optima  <<- c( vprob_optima, tbl[ pos, prob ] )
+  venvios_optimos <<- c( venvios_optimos, pos )
 
   return( list( "name"= "ganancia", 
                 "value"=  gan,
                 "higher_better"= TRUE ) )
 }
 #------------------------------------------------------------------------------
+
+EstimarGanancia_semilla <- function ( param_completo, seed )
+{
+  vprob_optima  <<- c()
+  venvios_optimos <<- c()
+  
+  param_completo$seed <- seed
+  set.seed( seed )
+  modelo_train  <- lgb.train( data= dtrain,
+                              valids= list( valid= dvalidate ),
+                              eval=   fganancia_lgbm_meseta,
+                              param=  param_completo,
+                              verbose= -100 )
+  
+  prob_corte  <- vprob_optima[ modelo_train$best_iter ]
+  envios  <- venvios_optimos[ modelo_train$best_iter ]
+  
+  return ( list ("modelo_train" = modelo_train, "prob_corte" = prob_corte, "envios" = envios) )
+}
 
 EstimarGanancia_lightgbm  <- function( x )
 {
@@ -99,26 +119,41 @@ EstimarGanancia_lightgbm  <- function( x )
   param_completo$num_iterations         <- ifelse( param_fijos$boosting== "dart", 999, 99999 )  #un numero muy grande
   param_completo$early_stopping_rounds  <- as.integer(200 + 4/param_completo$learning_rate )
 
-  vprob_optima  <<- c()
-  set.seed( param_completo$seed )
-  modelo_train  <- lgb.train( data= dtrain,
-                              valids= list( valid= dvalidate ),
-                              eval=   fganancia_lgbm_meseta,
-                              param=  param_completo,
-                              verbose= -100 )
+  envios = c()
+  probs_corte = c()
+  best_iters = c()
+  pred_acum = NULL
+  for(s in PARAM$semillas) {
+    resultados <- EstimarGanancia_semilla(param_completo, s)
+    envios = c(envios, resultados$envios)
+    probs_corte = c(probs_corte, resultados$prob_corte)
+    best_iters = c(best_iters, resultados$modelo_train$best_iter )
+    
+    #aplico el modelo a testing
+    prediccion  <-  frank( predict( resultados$modelo_train, 
+                            data.matrix( dataset_test[ , campos_buenos, with=FALSE]) ), ties.method= "random" )
+    
+    if (is.null(pred_acum)) {
+      pred_acum <- prediccion
+    } else {
+      pred_acum <- pred_acum + prediccion
+    }
+  }
 
-  prob_corte  <- vprob_optima[ modelo_train$best_iter ]
-
-  #aplico el modelo a testing y calculo la ganancia
-  prediccion  <- predict( modelo_train, 
-                          data.matrix( dataset_test[ , campos_buenos, with=FALSE]) )
+  envios = mean(envios)
 
   tbl  <- dataset_test[ , list(clase01) ]
-  tbl[ , prob := prediccion ]
-  ganancia_test  <- tbl[ prob >= prob_corte, 
+  tbl[ , prob := pred_acum ]
+  
+  setorder( tbl, -prob )
+  
+  tbl[, envio := 0]
+  tbl[1:envios, envio := 1]
+  
+  ganancia_test  <- tbl[ envio == 1, 
                          sum( ifelse( clase01, PARAM$const$POS_ganancia, PARAM$const$NEG_ganancia ) )]
 
-  cantidad_test_normalizada  <- test_multiplicador * tbl[ prob >= prob_corte, .N ]
+  cantidad_test_normalizada  <- test_multiplicador * envios
 
   rm( tbl )
   gc()
@@ -126,11 +161,11 @@ EstimarGanancia_lightgbm  <- function( x )
   ganancia_test_normalizada  <- test_multiplicador * ganancia_test
 
 
-  #voy grabando las mejores column importance
+  #voy grabando las mejores column importance (uso el último modelo de la última semilla)
   if( ganancia_test_normalizada >  GLOBAL_ganancia )
   {
     GLOBAL_ganancia  <<- ganancia_test_normalizada
-    tb_importancia    <- as.data.table( lgb.importance( modelo_train ) )
+    tb_importancia    <- as.data.table( lgb.importance( resultados$modelo_train ) )
 
     fwrite( tb_importancia,
             file= paste0( PARAM$files$output$importancia, GLOBAL_iteracion, ".txt" ),
@@ -141,8 +176,8 @@ EstimarGanancia_lightgbm  <- function( x )
   #logueo final
   xx  <- copy(param_completo)
   xx$early_stopping_rounds  <- NULL
-  xx$num_iterations  <- modelo_train$best_iter
-  xx$prob_corte  <-  prob_corte
+  xx$num_iterations  <- mean(best_iters)
+  xx$prob_corte  <-  mean(probs_corte)
   xx$estimulos   <-  cantidad_test_normalizada
   xx$ganancia  <- ganancia_test_normalizada
   xx$iteracion_bayesiana  <- GLOBAL_iteracion
