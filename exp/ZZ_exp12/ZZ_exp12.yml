@@ -10,7 +10,7 @@ googlecloud:
 
 
 experiment:
-  script: "src/completo/z999_ZZ_lightgbm_semillerio.r"
+  script: "src/completo/ZZ_lightgbm_semillerio.r"
   restart: TRUE
   name: "exp"
   requires:   [ "HT_exp12" ]
