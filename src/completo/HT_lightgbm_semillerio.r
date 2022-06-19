@@ -140,7 +140,7 @@ EstimarGanancia_lightgbm  <- function( x )
     }
   }
 
-  envios = mean(envios)
+  envios = round(mean(envios), digits = 0)
 
   tbl  <- dataset_test[ , list(clase01) ]
   tbl[ , prob := pred_acum ]
@@ -176,7 +176,7 @@ EstimarGanancia_lightgbm  <- function( x )
   #logueo final
   xx  <- copy(param_completo)
   xx$early_stopping_rounds  <- NULL
-  xx$num_iterations  <- mean(best_iters)
+  xx$num_iterations  <- round(mean(best_iters), digits = 0)
   xx$prob_corte  <-  mean(probs_corte)
   xx$estimulos   <-  cantidad_test_normalizada
   xx$ganancia  <- ganancia_test_normalizada
