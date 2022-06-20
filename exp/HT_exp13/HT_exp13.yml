@@ -36,7 +36,7 @@ param:
     min_data_in_leaf:   [  0, 200000, "integer" ]
 
     lambda_l1:  0                    # [ 0  ,  10]
-    lambda_l2:  [0 , 100]            # [ 0  , 200]
+    lambda_l2:  0                    # [ 0  , 200]
     min_gain_to_split: 0             # [ 0  ,  20]
 
     scale_pos_weight: [ 0.1, 10 ]
