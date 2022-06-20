@@ -10,7 +10,7 @@ experiment:
   script: "src/completo/HT_lightgbm_semillerio.r"
   restart: TRUE
   name: "exp"
-  requires:   [ "TS_exp12" ]
+  requires:   [ "TS_exp13" ]
 
 
 param:
