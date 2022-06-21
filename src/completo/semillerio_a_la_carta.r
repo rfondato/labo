@@ -78,6 +78,9 @@ tb_submits  <- data.table( archivo= character(),
 for( i in  PARAM$iteraciones )
 {
   parametros  <- as.list( copy( tb_log[ i ] ) )
+  
+  parametros$num_iterations = round(parametros$num_iterations, digits = 0)
+  
   iteracion_bayesiana  <- parametros$iteracion_bayesiana
 
   archivo_modelo  <- paste0( PARAM$files$output$FMmodelo ,
